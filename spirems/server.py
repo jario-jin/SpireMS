@@ -273,6 +273,7 @@ class Server(threading.Thread):
         threading.Thread.__init__(self)
         socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        socket_server.settimeout(5)
         socket_server.bind(('', port))
         socket_server.listen(512)
 
@@ -283,15 +284,18 @@ class Server(threading.Thread):
 
     def run(self):
         while self.listening:
-            client_socket, client_address = self.socket_server.accept()
-            client_key = random_vcode()
-            while client_key in self.connected_clients.keys():
+            try:
+                client_socket, client_address = self.socket_server.accept()
                 client_key = random_vcode()
-            logger.info('Got client: [{}], ip: {}, port: {}'.format(client_key, client_address[0], client_address[1]))
+                while client_key in self.connected_clients.keys():
+                    client_key = random_vcode()
+                logger.info('Got client: [{}], ip: {}, port: {}'.format(client_key, client_address[0], client_address[1]))
 
-            pipeline = Pipeline(client_key, client_socket, self)
-            self.connected_clients[client_key] = pipeline
-            pipeline.start()
+                pipeline = Pipeline(client_key, client_socket, self)
+                self.connected_clients[client_key] = pipeline
+                pipeline.start()
+            except socket.timeout as e:
+                pass
 
     def msg_forwarding(self, client_key: str, msg: bytes):
         if client_key in self.connected_clients:

@@ -50,9 +50,12 @@ class Publisher(threading.Thread):
 
     def publish(self, topic):
         if not self.suspended and self.running:
-            topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
-            topic_upload['topic'] = topic
-            self.client_socket.send(encode_msg(topic_upload))
+            try:
+                topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
+                topic_upload['topic'] = topic
+                self.client_socket.send(encode_msg(topic_upload))
+            except Exception as e:
+                logger.error(e)
 
     def _parse_msg(self, msg):
         success, decode_data = decode_msg(msg)

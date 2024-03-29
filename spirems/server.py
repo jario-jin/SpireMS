@@ -5,7 +5,7 @@ import threading
 import socket
 import random
 import time
-import re
+import struct
 from log import get_logger
 from msg_helper import (get_all_msg_types, index_msg_header, decode_msg_header, decode_msg, encode_msg,
                         check_topic_url, check_msg)
@@ -142,7 +142,7 @@ class Pipeline(threading.Thread):
         heartbeat_thread.start()
 
     def heartbeat(self):
-        self.client_socket.settimeout(5)
+        # self.client_socket.settimeout(5)
         while self.running:
             hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
             try:
@@ -233,12 +233,15 @@ class Pipeline(threading.Thread):
         data = b''
         last_data = b''
         big_msg = 0
-        self.client_socket.settimeout(5)
+        # self.client_socket.settimeout(5)
         while self.running:
             try:
                 data = self.client_socket.recv(4096)
             except socket.timeout:
                 pass
+            except Exception as e:
+                logger.error("pipline recv: {}".format(e))
+                self.running = False
 
             try:
                 checked_msgs, parted_msg, parted_len = check_msg(data)
@@ -259,7 +262,7 @@ class Pipeline(threading.Thread):
                         self._parse_msg(msg)
 
             except Exception as e:
-                logger.error(e)
+                logger.error("pipline parse: {}".format(e))
                 self.running = False
 
         if not self.running and not self._quit:
@@ -293,7 +296,7 @@ class Server(threading.Thread):
         while self.listening:
             try:
                 client_socket, client_address = self.socket_server.accept()
-                client_socket.settimeout(5)
+                client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack('ll', 5, 0))
                 client_key = random_vcode()
                 while client_key in self.connected_clients.keys():
                     client_key = random_vcode()

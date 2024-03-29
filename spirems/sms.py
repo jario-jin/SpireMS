@@ -3,7 +3,8 @@
 import socket
 import time
 
-from msg_helper import encode_msg, decode_msg, get_all_msg_types, index_msg_header, decode_msg_header
+from msg_helper import (encode_msg, decode_msg, get_all_msg_types, check_msg,
+                        index_msg_header, decode_msg_header)
 import sys
 import argparse
 import json
@@ -11,6 +12,7 @@ import json
 
 def _echo(topic, ip, port):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.settimeout(5)
     client_socket.connect((ip, port))
 
     apply_topic = get_all_msg_types()['_sys_msgs::Subscriber'].copy()
@@ -25,37 +27,27 @@ def _echo(topic, ip, port):
             print(formatted_str)
 
     last_data = b''
-    msg_cnt = 0
-    msg_len = 0
+    big_msg = 0
     while True:
         try:
             data = client_socket.recv(4096)
-            index = index_msg_header(data)
-            if index >= 0:
-                data = data[index:]
-                msg_len = decode_msg_header(data)
-                if msg_len == 0 or msg_len > 1024 * 1024 * 5:  # 5Mb
-                    msg_len = 0
-                    continue
-                last_data = b''
-                last_data += data
-                msg_cnt = 0
-                msg_cnt += len(data)
-                if msg_cnt >= msg_len:
-                    last_data = last_data[:msg_len]
-                    _parse_msg(last_data)
-                    last_data = b''
-                    msg_cnt = 0
-                    msg_len = 0
-            elif msg_len > 0 and msg_cnt < msg_len:
-                last_data += data
-                msg_cnt += len(data)
-                if msg_cnt >= msg_len:
-                    last_data = last_data[:msg_len]
-                    _parse_msg(last_data)
-                    last_data = b''
-                    msg_cnt = 0
-                    msg_len = 0
+            checked_msgs, parted_msg, parted_len = check_msg(data)
+
+            if len(parted_msg) > 0:
+                if parted_len > 0:
+                    last_data = parted_msg
+                    big_msg = parted_len
+                else:
+                    last_data += parted_msg
+                    if 0 < big_msg <= len(last_data):
+                        checked_msgs.append(last_data[:big_msg])
+                        big_msg = 0
+                        last_data = b''
+
+            if len(checked_msgs) > 0:
+                for msg in checked_msgs:
+                    _parse_msg(msg)
+
         except Exception as e:
             print(e)
             break
@@ -71,6 +63,7 @@ cnt = 0
 
 def _hz(topic, ip, port):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.settimeout(5)
     client_socket.connect((ip, port))
 
     apply_topic = get_all_msg_types()['_sys_msgs::Subscriber'].copy()
@@ -102,37 +95,27 @@ def _hz(topic, ip, port):
                     ))
 
     last_data = b''
-    msg_cnt = 0
-    msg_len = 0
+    big_msg = 0
     while True:
         try:
             data = client_socket.recv(4096)
-            index = index_msg_header(data)
-            if index >= 0:
-                data = data[index:]
-                msg_len = decode_msg_header(data)
-                if msg_len == 0 or msg_len > 1024 * 1024 * 5:  # 5Mb
-                    msg_len = 0
-                    continue
-                last_data = b''
-                last_data += data
-                msg_cnt = 0
-                msg_cnt += len(data)
-                if msg_cnt >= msg_len:
-                    last_data = last_data[:msg_len]
-                    _parse_msg(last_data)
-                    last_data = b''
-                    msg_cnt = 0
-                    msg_len = 0
-            elif msg_len > 0 and msg_cnt < msg_len:
-                last_data += data
-                msg_cnt += len(data)
-                if msg_cnt >= msg_len:
-                    last_data = last_data[:msg_len]
-                    _parse_msg(last_data)
-                    last_data = b''
-                    msg_cnt = 0
-                    msg_len = 0
+            checked_msgs, parted_msg, parted_len = check_msg(data)
+
+            if len(parted_msg) > 0:
+                if parted_len > 0:
+                    last_data = parted_msg
+                    big_msg = parted_len
+                else:
+                    last_data += parted_msg
+                    if 0 < big_msg <= len(last_data):
+                        checked_msgs.append(last_data[:big_msg])
+                        big_msg = 0
+                        last_data = b''
+
+            if len(checked_msgs) > 0:
+                for msg in checked_msgs:
+                    _parse_msg(msg)
+
         except Exception as e:
             print(e)
             break
@@ -140,6 +123,7 @@ def _hz(topic, ip, port):
 
 def _list(ip, port):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.settimeout(5)
     client_socket.connect((ip, port))
 
     client_socket.send(encode_msg(get_all_msg_types()['_sys_msgs::SmsTopicList']))
@@ -169,33 +153,32 @@ def _list(ip, port):
         return False
 
     last_data = b''
-    msg_cnt = 0
-    msg_len = 0
+    big_msg = 0
     while True:
         try:
             data = client_socket.recv(4096)
-            index = index_msg_header(data)
-            if index >= 0:
-                data = data[index:]
-                msg_len = decode_msg_header(data)
-                if msg_len == 0 or msg_len > 1024 * 1024 * 5:  # 5Mb
-                    msg_len = 0
-                    continue
-                last_data = b''
-                last_data += data
-                msg_cnt = 0
-                msg_cnt += len(data)
-                if msg_cnt >= msg_len:
-                    last_data = last_data[:msg_len]
-                    if _parse_msg(last_data):
+            checked_msgs, parted_msg, parted_len = check_msg(data)
+
+            if len(parted_msg) > 0:
+                if parted_len > 0:
+                    last_data = parted_msg
+                    big_msg = parted_len
+                else:
+                    last_data += parted_msg
+                    if 0 < big_msg <= len(last_data):
+                        checked_msgs.append(last_data[:big_msg])
+                        big_msg = 0
+                        last_data = b''
+
+            if len(checked_msgs) > 0:
+                _quit = False
+                for msg in checked_msgs:
+                    if _parse_msg(msg):
+                        _quit = True
                         break
-            elif msg_len > 0 and msg_cnt < msg_len:
-                last_data += data
-                msg_cnt += len(data)
-                if msg_cnt >= msg_len:
-                    last_data = last_data[:msg_len]
-                    if _parse_msg(last_data):
-                        break
+                if _quit:
+                    break
+
         except Exception as e:
             print(e)
             break

@@ -7,7 +7,8 @@ import random
 import time
 import re
 from log import get_logger
-from msg_helper import get_all_msg_types, index_msg_header, decode_msg_header, decode_msg, encode_msg, check_topic_url
+from msg_helper import (get_all_msg_types, index_msg_header, decode_msg_header, decode_msg, encode_msg,
+                        check_topic_url, check_msg)
 from error_code import ec2msg
 
 
@@ -236,37 +237,27 @@ class Pipeline(threading.Thread):
 
     def run(self):
         last_data = b''
-        msg_cnt = 0
-        msg_len = 0
+        big_msg = 0
         while self.running:
             try:
                 data = self.client_socket.recv(4096)
-                index = index_msg_header(data)
-                if index >= 0:
-                    data = data[index:]
-                    msg_len = decode_msg_header(data)
-                    if msg_len == 0 or msg_len > 1024 * 1024 * 5:  # 5Mb
-                        msg_len = 0
-                        continue
-                    last_data = b''
-                    last_data += data
-                    msg_cnt = 0
-                    msg_cnt += len(data)
-                    if msg_cnt >= msg_len:
-                        last_data = last_data[:msg_len]
-                        self._parse_msg(last_data)
-                        last_data = b''
-                        msg_cnt = 0
-                        msg_len = 0
-                elif msg_len > 0 and msg_cnt < msg_len:
-                    last_data += data
-                    msg_cnt += len(data)
-                    if msg_cnt >= msg_len:
-                        last_data = last_data[:msg_len]
-                        self._parse_msg(last_data)
-                        last_data = b''
-                        msg_cnt = 0
-                        msg_len = 0
+                checked_msgs, parted_msg, parted_len = check_msg(data)
+
+                if len(parted_msg) > 0:
+                    if parted_len > 0:
+                        last_data = parted_msg
+                        big_msg = parted_len
+                    else:
+                        last_data += parted_msg
+                        if 0 < big_msg <= len(last_data):
+                            checked_msgs.append(last_data[:big_msg])
+                            big_msg = 0
+                            last_data = b''
+
+                if len(checked_msgs) > 0:
+                    for msg in checked_msgs:
+                        self._parse_msg(msg)
+
             except Exception as e:
                 logger.error(e)
                 self.running = False

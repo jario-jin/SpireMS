@@ -49,6 +49,38 @@ def decode_msg_header(data: bytes) -> int:
     return msg_len
 
 
+def check_msg(data: bytes) -> (list, bytes, int):
+    # return checked_msgs, parted_msg
+    checked_msgs = []
+    parted_msg = b''
+    parted_len = 0
+    index = index_msg_header(data)
+    if index >= 0:
+        data = data[index:]
+        msg_len = decode_msg_header(data)
+        if msg_len > 8:
+            while len(data) >= msg_len:
+                if msg_len > 8:
+                    checked_msgs.append(data[:msg_len])
+
+                data = data[msg_len:]
+                index = index_msg_header(data)
+                if index >= 0:
+                    data = data[index:]
+                    msg_len = decode_msg_header(data)
+                    if msg_len <= 8:
+                        break
+                else:
+                    msg_len = 0
+                    break
+            if 8 < msg_len < 1024 * 1024 * 5:  # 5Mb
+                parted_msg = data
+                parted_len = msg_len
+    else:
+        parted_msg = data
+    return checked_msgs, parted_msg, parted_len
+
+
 def decode_msg(data: bytes) -> (bool, dict):
     success = True
     decode_data = dict()

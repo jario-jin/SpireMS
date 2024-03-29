@@ -43,7 +43,7 @@ class Subscriber(threading.Thread):
         apply_topic = all_types['_sys_msgs::Subscriber'].copy()
         apply_topic['topic_type'] = self.topic_type
         apply_topic['url'] = self.topic_url
-        self.client_socket.send(encode_msg(apply_topic))
+        self.client_socket.sendall(encode_msg(apply_topic))
 
     def _parse_msg(self, msg):
         success, decode_data = decode_msg(msg)

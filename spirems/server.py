@@ -142,16 +142,17 @@ class Pipeline(threading.Thread):
         heartbeat_thread.start()
 
     def heartbeat(self):
+        self.client_socket.settimeout(5)
         while self.running:
             hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
             try:
-                self.client_socket.send(encode_msg(hb_msg))
+                self.client_socket.sendall(encode_msg(hb_msg))
                 if self.pub_suspended:
                     all_topics = get_public_topic()
                     url = all_topics['from_key'][self.client_key]['url']
                     if len(all_topics['from_topic'][url]['subs']) > 0:
                         unsuspend_msg = get_all_msg_types()['_sys_msgs::Unsuspend'].copy()
-                        self.client_socket.send(encode_msg(unsuspend_msg))
+                        self.client_socket.sendall(encode_msg(unsuspend_msg))
                         self.pub_suspended = False
                 time.sleep(1)
             except Exception as e:
@@ -168,7 +169,7 @@ class Pipeline(threading.Thread):
         url = all_topics['from_key'][self.client_key]['url']
         if len(all_topics['from_topic'][url]['subs']) == 0:
             suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
-            self.client_socket.send(encode_msg(suspend_msg))
+            self.client_socket.sendall(encode_msg(suspend_msg))
             self.pub_suspended = True
 
         enc_msg = encode_msg(topic)
@@ -226,12 +227,13 @@ class Pipeline(threading.Thread):
             response = ec2msg(101)
             logger.debug(data)
 
-        self.client_socket.send(encode_msg(response))
+        self.client_socket.sendall(encode_msg(response))
 
     def run(self):
         data = b''
         last_data = b''
         big_msg = 0
+        self.client_socket.settimeout(5)
         while self.running:
             try:
                 data = self.client_socket.recv(4096)
@@ -305,7 +307,7 @@ class Server(threading.Thread):
 
     def msg_forwarding(self, client_key: str, msg: bytes):
         if client_key in self.connected_clients:
-            self.connected_clients[client_key].client_socket.send(msg)
+            self.connected_clients[client_key].client_socket.sendall(msg)
 
     def quit(self, client_key=None):
         if client_key is None:

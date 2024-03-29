@@ -46,14 +46,14 @@ class Publisher(threading.Thread):
         apply_topic = all_types['_sys_msgs::Publisher'].copy()
         apply_topic['topic_type'] = self.topic_type
         apply_topic['url'] = self.topic_url
-        self.client_socket.send(encode_msg(apply_topic))
+        self.client_socket.sendall(encode_msg(apply_topic))
 
     def publish(self, topic):
         if not self.suspended and self.running:
             try:
                 topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
                 topic_upload['topic'] = topic
-                self.client_socket.send(encode_msg(topic_upload))
+                self.client_socket.sendall(encode_msg(topic_upload))
             except socket.timeout:
                 pass
 

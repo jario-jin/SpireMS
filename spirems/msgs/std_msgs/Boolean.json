@@ -1,0 +1,5 @@
+{
+	"type": "std_msgs::Boolean",
+	"timestamp": 0.0,
+	"data": false
+}

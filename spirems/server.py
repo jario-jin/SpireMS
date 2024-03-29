@@ -213,6 +213,7 @@ class Pipeline(threading.Thread):
                 for key, val in get_public_topic()['from_topic'].items():
                     url_types.append(key + "," + val['type'])
                 response['data'] = ";".join(url_types)
+                print(response)
             elif '_sys_msgs::TopicUpload' == msg['type']:
                 if self.pub_type is None:
                     response = ec2msg(207)
@@ -225,15 +226,7 @@ class Pipeline(threading.Thread):
             response = ec2msg(101)
             logger.debug(data)
 
-        if response['error_code'] == 0 and len(response['data']) == 0:
-            if self.last_msg_err:
-                self.client_socket.send(encode_msg(response))
-                self.last_msg_err = False
-        elif len(response['data']) > 0:
-            self.client_socket.send(encode_msg(response))
-        else:
-            self.client_socket.send(encode_msg(response))
-            self.last_msg_err = True
+        self.client_socket.send(encode_msg(response))
 
     def run(self):
         last_data = b''

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import logging
+import random
 import socket
 import threading
 import time
@@ -116,9 +117,9 @@ if __name__ == '__main__':
     pub = Publisher('/hello1', 'std_msgs::NumberMultiArray')
     cnt = 0
     while True:
-        time.sleep(0.01)
+        time.sleep(0.05)
         tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
-        tpc['data'] = [i + cnt for i in range(2000)]
+        tpc['data'] = [random.random() for i in range(200)]
         if cnt == 0:
             tpc['type'] = 'std_msgs::Number'
         pub.publish(tpc)

@@ -143,9 +143,9 @@ class Pipeline(threading.Thread):
 
     def heartbeat(self):
         while self.running:
-            hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat']
+            hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
             try:
-                self.client_socket.send(encode_msg(hb_msg.copy()))
+                self.client_socket.send(encode_msg(hb_msg))
                 if self.pub_suspended:
                     all_topics = get_public_topic()
                     url = all_topics['from_key'][self.client_key]['url']
@@ -155,7 +155,7 @@ class Pipeline(threading.Thread):
                         self.pub_suspended = False
                 time.sleep(1)
             except Exception as e:
-                # print(e)
+                logger.error("heartbeat: {}".format(e))
                 self.running = False
 
             if not self.running and not self._quit:
@@ -168,11 +168,8 @@ class Pipeline(threading.Thread):
         url = all_topics['from_key'][self.client_key]['url']
         if len(all_topics['from_topic'][url]['subs']) == 0:
             suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
-            try:
-                self.client_socket.send(encode_msg(suspend_msg))
-                self.pub_suspended = True
-            except Exception as e:
-                self.running = False
+            self.client_socket.send(encode_msg(suspend_msg))
+            self.pub_suspended = True
 
         enc_msg = encode_msg(topic)
         for sub in all_topics['from_topic'][url]['subs']:
@@ -232,11 +229,16 @@ class Pipeline(threading.Thread):
         self.client_socket.send(encode_msg(response))
 
     def run(self):
+        data = b''
         last_data = b''
         big_msg = 0
         while self.running:
             try:
                 data = self.client_socket.recv(4096)
+            except socket.timeout:
+                pass
+
+            try:
                 checked_msgs, parted_msg, parted_len = check_msg(data)
 
                 if len(parted_msg) > 0:
@@ -253,8 +255,7 @@ class Pipeline(threading.Thread):
                 if len(checked_msgs) > 0:
                     for msg in checked_msgs:
                         self._parse_msg(msg)
-            except socket.timeout:
-                pass
+
             except Exception as e:
                 logger.error(e)
                 self.running = False

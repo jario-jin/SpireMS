@@ -168,8 +168,11 @@ class Pipeline(threading.Thread):
         url = all_topics['from_key'][self.client_key]['url']
         if len(all_topics['from_topic'][url]['subs']) == 0:
             suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
-            self.client_socket.send(encode_msg(suspend_msg))
-            self.pub_suspended = True
+            try:
+                self.client_socket.send(encode_msg(suspend_msg))
+                self.pub_suspended = True
+            except Exception as e:
+                self.running = False
 
         enc_msg = encode_msg(topic)
         for sub in all_topics['from_topic'][url]['subs']:
@@ -250,7 +253,8 @@ class Pipeline(threading.Thread):
                 if len(checked_msgs) > 0:
                     for msg in checked_msgs:
                         self._parse_msg(msg)
-
+            except socket.timeout:
+                pass
             except Exception as e:
                 logger.error(e)
                 self.running = False
@@ -286,6 +290,7 @@ class Server(threading.Thread):
         while self.listening:
             try:
                 client_socket, client_address = self.socket_server.accept()
+                client_socket.settimeout(5)
                 client_key = random_vcode()
                 while client_key in self.connected_clients.keys():
                     client_key = random_vcode()
@@ -294,7 +299,7 @@ class Server(threading.Thread):
                 pipeline = Pipeline(client_key, client_socket, self)
                 self.connected_clients[client_key] = pipeline
                 pipeline.start()
-            except socket.timeout as e:
+            except socket.timeout:
                 pass
 
     def msg_forwarding(self, client_key: str, msg: bytes):

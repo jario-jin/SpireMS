@@ -92,4 +92,5 @@ class Subscriber(threading.Thread):
 
 
 if __name__ == '__main__':
+    # sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', ip='47.91.115.171')
     sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray')

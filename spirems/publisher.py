@@ -54,8 +54,8 @@ class Publisher(threading.Thread):
                 topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
                 topic_upload['topic'] = topic
                 self.client_socket.send(encode_msg(topic_upload))
-            except Exception as e:
-                logger.error(e)
+            except socket.timeout:
+                pass
 
     def _parse_msg(self, msg):
         success, decode_data = decode_msg(msg)
@@ -117,6 +117,7 @@ class Publisher(threading.Thread):
 
 
 if __name__ == '__main__':
+    # pub = Publisher('/hello1', 'std_msgs::NumberMultiArray', ip='47.91.115.171')
     pub = Publisher('/hello1', 'std_msgs::NumberMultiArray')
     cnt = 0
     while True:

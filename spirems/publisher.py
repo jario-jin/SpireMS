@@ -59,14 +59,16 @@ class Publisher(threading.Thread):
         self.client_socket.settimeout(5)
         self.client_socket.connect((self.ip, self.port))
 
-    def publish(self, topic):
+    def publish(self, topic) -> bool:
         if not self.suspended and self.running and self.publish_available:
             try:
                 topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
                 topic_upload['topic'] = topic
                 self.client_socket.sendall(encode_msg(topic_upload))
+                return True
             except socket.timeout:
                 pass
+        return False
 
     def _parse_msg(self, msg):
         success, decode_data = decode_msg(msg)
@@ -130,7 +132,7 @@ class Publisher(threading.Thread):
                 logger.error(e)
                 self.running = False
 
-            while not self.running and not self.suspended:
+            while not self.running:
                 self.publish_available = False
                 time.sleep(5)
                 try:
@@ -146,13 +148,13 @@ class Publisher(threading.Thread):
 
 
 if __name__ == '__main__':
-    # pub = Publisher('/hello1', 'std_msgs::NumberMultiArray', ip='47.91.115.171')
-    pub = Publisher('/hello1', 'std_msgs::NumberMultiArray')
+    pub = Publisher('/hello1', 'std_msgs::NumberMultiArray', ip='47.91.115.171')
+    # pub = Publisher('/hello1', 'std_msgs::NumberMultiArray')
     cnt = 0
     while True:
         time.sleep(0.05)
         tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
-        tpc['data'] = [random.random() for i in range(200)]
+        tpc['data'] = [random.random() for i in range(2)]
         if cnt == 0:
             tpc['type'] = 'std_msgs::Number'
         pub.publish(tpc)

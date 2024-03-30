@@ -15,7 +15,8 @@ logger = get_logger('Subscriber')
 
 class Subscriber(threading.Thread):
 
-    def __init__(self, topic_url: str, topic_type: str, ip: str = '127.0.0.1', port: int = 9094):
+    def __init__(self, topic_url: str, topic_type: str, callback_func: callable,
+                 ip: str = '127.0.0.1', port: int = 9094):
         threading.Thread.__init__(self)
         self.topic_url = topic_url
         self.topic_type = topic_type
@@ -23,6 +24,7 @@ class Subscriber(threading.Thread):
         self.port = port
         self.topic_type = topic_type
         self.topic_url = topic_url
+        self.callback_func = callback_func
 
         all_types = get_all_msg_types()
         if topic_type not in all_types.keys():
@@ -31,12 +33,16 @@ class Subscriber(threading.Thread):
         if url_state != 0:
             raise ValueError('The input topic_url is invalid, please verify...')
 
+        self.force_quit = False
         self._link()
         self.running = True
         self.start()
         heartbeat_thread = threading.Thread(target=self.heartbeat)
         self.heartbeat_running = True
         heartbeat_thread.start()
+
+    def kill(self):
+        self.force_quit = True
 
     def heartbeat(self):
         while self.heartbeat_running:
@@ -49,6 +55,8 @@ class Subscriber(threading.Thread):
             except Exception as e:
                 logger.error("heartbeat: {}".format(e))
             time.sleep(1)
+            if self.force_quit:
+                break
 
     def _link(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -58,15 +66,17 @@ class Subscriber(threading.Thread):
 
     def _parse_msg(self, msg):
         success, decode_data = decode_msg(msg)
-        if success and decode_data['type'] != '_sys_msgs::HeartBeat':
-            print("{:.3f}: {}".format(time.time() - decode_data['timestamp'], decode_data))
+        if success and decode_data['type'] != '_sys_msgs::HeartBeat' and decode_data['type'] != '_sys_msgs::Result':
+            # print("{:.3f}: {}".format(time.time() - decode_data['timestamp'], decode_data))
+            self.callback_func(decode_data)
 
     def run(self):
         data = b''
         last_data = b''
         big_msg = 0
         while self.running:
-            tt1 = time.time()
+            if self.force_quit:
+                break
             try:
                 data = self.client_socket.recv(4096)
                 if not data:
@@ -105,6 +115,8 @@ class Subscriber(threading.Thread):
                 self.running = False
 
             while not self.running:
+                if self.force_quit:
+                    break
                 time.sleep(5)
                 try:
                     self.client_socket.close()
@@ -118,6 +130,10 @@ class Subscriber(threading.Thread):
                 big_msg = 0
 
 
+def callback_f(msg):
+    print(msg)
+
+
 if __name__ == '__main__':
-    # sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', ip='47.91.115.171')
-    sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray')
+    sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', callback_f, ip='47.91.115.171')
+    # sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', callback_f)

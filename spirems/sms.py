@@ -8,49 +8,22 @@ from msg_helper import (encode_msg, decode_msg, get_all_msg_types, check_msg,
 import sys
 import argparse
 import json
+from subscriber import Subscriber
 
 
 def _echo(topic, ip, port):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.settimeout(5)
-    client_socket.connect((ip, port))
+    def _parse_msg(msg):
+        formatted_str = json.dumps(msg, indent=4)
+        print(formatted_str)
 
-    apply_topic = get_all_msg_types()['_sys_msgs::Subscriber'].copy()
-    apply_topic['topic_type'] = "std_msgs::Null"
-    apply_topic['url'] = topic
-    client_socket.send(encode_msg(apply_topic))
-
-    def _parse_msg(res):
-        success, decode_data = decode_msg(res)
-        if success and decode_data['type'] not in ['_sys_msgs::HeartBeat', '_sys_msgs::Result']:
-            formatted_str = json.dumps(decode_data, indent=4)
-            print(formatted_str)
-
-    last_data = b''
-    big_msg = 0
-    while True:
-        try:
-            data = client_socket.recv(4096)
-            checked_msgs, parted_msg, parted_len = check_msg(data)
-
-            if len(parted_msg) > 0:
-                if parted_len > 0:
-                    last_data = parted_msg
-                    big_msg = parted_len
-                else:
-                    last_data += parted_msg
-                    if 0 < big_msg <= len(last_data):
-                        checked_msgs.append(last_data[:big_msg])
-                        big_msg = 0
-                        last_data = b''
-
-            if len(checked_msgs) > 0:
-                for msg in checked_msgs:
-                    _parse_msg(msg)
-
-        except Exception as e:
-            print(e)
-            break
+    sub = Subscriber(topic, 'std_msgs::Null', _parse_msg, ip=ip, port=port)
+    try:
+        while True:
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        print('stopped by keyboard')
+        sub.kill()
+        sub.join()
 
 
 t1 = 0
@@ -62,63 +35,35 @@ cnt = 0
 
 
 def _hz(topic, ip, port):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.settimeout(5)
-    client_socket.connect((ip, port))
-
-    apply_topic = get_all_msg_types()['_sys_msgs::Subscriber'].copy()
-    apply_topic['topic_type'] = "std_msgs::Null"
-    apply_topic['url'] = topic
-    client_socket.send(encode_msg(apply_topic))
-
-    def _parse_msg(res):
-        success, decode_data = decode_msg(res)
-        if success and decode_data['type'] not in ['_sys_msgs::HeartBeat', '_sys_msgs::Result']:
-            global t1, t2, t3, min_dt, max_dt, cnt
-            cnt += 1
-            if t1 == 0:
-                t1 = time.time()
+    def _parse_msg(msg):
+        global t1, t2, t3, min_dt, max_dt, cnt
+        cnt += 1
+        if t1 == 0:
+            t1 = time.time()
+            t2 = t1
+            t3 = t1
+            cnt = 0
+        else:
+            dt = time.time() - t1
+            if dt < min_dt:
+                min_dt = dt
+            if dt > max_dt:
+                max_dt = dt
+            t1 = time.time()
+            if t1 - t2 > 2:
                 t2 = t1
-                t3 = t1
-                cnt = 0
-            else:
-                dt = time.time() - t1
-                if dt < min_dt:
-                    min_dt = dt
-                if dt > max_dt:
-                    max_dt = dt
-                t1 = time.time()
-                if t1 - t2 > 2:
-                    t2 = t1
-                    print("Average Rate: {:.2f}, Max Time Interval: {:.1f} ms, Min Time Interval: {:.1f} ms".format(
-                        cnt / (t1 - t3), max_dt * 1000, min_dt * 1000
-                    ))
+                print("Average Rate: {:.2f}, Max Time Interval: {:.1f} ms, Min Time Interval: {:.1f} ms".format(
+                    cnt / (t1 - t3), max_dt * 1000, min_dt * 1000
+                ))
 
-    last_data = b''
-    big_msg = 0
-    while True:
-        try:
-            data = client_socket.recv(4096)
-            checked_msgs, parted_msg, parted_len = check_msg(data)
-
-            if len(parted_msg) > 0:
-                if parted_len > 0:
-                    last_data = parted_msg
-                    big_msg = parted_len
-                else:
-                    last_data += parted_msg
-                    if 0 < big_msg <= len(last_data):
-                        checked_msgs.append(last_data[:big_msg])
-                        big_msg = 0
-                        last_data = b''
-
-            if len(checked_msgs) > 0:
-                for msg in checked_msgs:
-                    _parse_msg(msg)
-
-        except Exception as e:
-            print(e)
-            break
+    sub = Subscriber(topic, 'std_msgs::Null', _parse_msg, ip=ip, port=port)
+    try:
+        while True:
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        print('stopped by keyboard')
+        sub.kill()
+        sub.join()
 
 
 def _list(ip, port):

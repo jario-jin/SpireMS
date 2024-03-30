@@ -78,7 +78,7 @@ class Subscriber(threading.Thread):
                 self.running = False
 
             while not self.running:
-                time.sleep(2)
+                time.sleep(5)
                 try:
                     self.client_socket.close()
                     self._link()

@@ -105,8 +105,10 @@ def update_subscriber(topic_url: str, topic_type: str, client_key: str):
 
 def check_publish_url_type(topic_url: str, topic_type: str) -> int:
     error = check_topic_url(topic_url)
+    """
     if topic_url in get_public_topic()['from_topic']:
         error = 204  # As the same as the existing
+    """
     if topic_type not in get_all_msg_types():
         error = 205  # Unsupported topic type
     return error
@@ -142,11 +144,12 @@ class Pipeline(threading.Thread):
         heartbeat_thread.start()
 
     def heartbeat(self):
-        # self.client_socket.settimeout(5)
         while self.running:
             hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
             try:
+                t1 = time.time()
                 self.client_socket.sendall(encode_msg(hb_msg))
+                logger.debug("heartbeat dt: {}".format(time.time() - t1))
                 if self.pub_suspended:
                     all_topics = get_public_topic()
                     url = all_topics['from_key'][self.client_key]['url']
@@ -191,7 +194,6 @@ class Pipeline(threading.Thread):
                     if error == 0:
                         self.pub_type = msg['topic_type']
                         update_topic(msg['url'], msg['topic_type'], self.client_key)
-                        # show_topic_list()
                     else:
                         response = ec2msg(error)
                 else:
@@ -214,12 +216,10 @@ class Pipeline(threading.Thread):
                 for key, val in get_public_topic()['from_topic'].items():
                     url_types.append(key + "," + val['type'])
                 response['data'] = ";".join(url_types)
-                print(response)
             elif '_sys_msgs::TopicUpload' == msg['type']:
                 if self.pub_type is None:
                     response = ec2msg(207)
                 elif 'topic' in msg and 'type' in msg['topic'] and msg['topic']['type'] == self.pub_type:
-                    # logger.debug(encode_msg(msg['topic'])[8:])
                     self._forwarding_topic(msg['topic'])
                 else:
                     response = ec2msg(208)
@@ -233,7 +233,6 @@ class Pipeline(threading.Thread):
         data = b''
         last_data = b''
         big_msg = 0
-        # self.client_socket.settimeout(5)
         while self.running:
             try:
                 data = self.client_socket.recv(4096)
@@ -296,7 +295,8 @@ class Server(threading.Thread):
         while self.listening:
             try:
                 client_socket, client_address = self.socket_server.accept()
-                client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack('ll', 5, 0))
+                client_socket.settimeout(2)
+                # client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack('ll', 5, 0))
                 client_key = random_vcode()
                 while client_key in self.connected_clients.keys():
                     client_key = random_vcode()

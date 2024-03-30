@@ -76,39 +76,38 @@ def remove_subscriber(client_key: str):
 
 def update_topic(topic_url: str, topic_type: str, client_key: str):
     topic_list = get_public_topic()
-    if client_key in topic_list['from_key']:
-        remove_topic(client_key)
-    topic_list['from_key'][client_key] = {
-        'url': topic_url,
-        'type': topic_type,
-        'key': client_key
-    }
-    topic_list['from_topic'][topic_url] = {
-        'url': topic_url,
-        'type': topic_type,
-        'key': client_key
-    }
-    sync_topic_subscriber()
+    if client_key not in topic_list['from_key']:
+        if topic_url in topic_list['from_topic']:
+            pass
+        else:
+            topic_list['from_key'][client_key] = {
+                'url': topic_url,
+                'type': topic_type,
+                'key': client_key
+            }
+            topic_list['from_topic'][topic_url] = {
+                'url': topic_url,
+                'type': topic_type,
+                'key': client_key
+            }
+            sync_topic_subscriber()
 
 
 def update_subscriber(topic_url: str, topic_type: str, client_key: str):
     topic_list = get_public_topic()
-    if client_key in topic_list['from_subscriber']:
-        remove_subscriber(client_key)
-    topic_list['from_subscriber'][client_key] = {
-        'url': topic_url,
-        'type': topic_type,
-        'key': client_key
-    }
-    sync_topic_subscriber()
+    if client_key not in topic_list['from_subscriber']:
+        topic_list['from_subscriber'][client_key] = {
+            'url': topic_url,
+            'type': topic_type,
+            'key': client_key
+        }
+        sync_topic_subscriber()
 
 
-def check_publish_url_type(topic_url: str, topic_type: str) -> int:
+def check_publish_url_type(topic_url: str, topic_type: str, client_key: str) -> int:
     error = check_topic_url(topic_url)
-    """
-    if topic_url in get_public_topic()['from_topic']:
+    if client_key not in get_public_topic()['from_key'] and topic_url in get_public_topic()['from_topic']:
         error = 204  # As the same as the existing
-    """
     if topic_type not in get_all_msg_types():
         error = 205  # Unsupported topic type
     return error
@@ -139,7 +138,7 @@ class Pipeline(threading.Thread):
         self.sub_type = None
         self._quit = False
         self.pub_suspended = False
-        self.last_msg_err = False
+        self.last_send_time = time.time()
         heartbeat_thread = threading.Thread(target=self.heartbeat)
         heartbeat_thread.start()
 
@@ -147,15 +146,16 @@ class Pipeline(threading.Thread):
         while self.running:
             hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
             try:
-                t1 = time.time()
-                self.client_socket.sendall(encode_msg(hb_msg))
-                logger.debug("heartbeat dt: {}".format(time.time() - t1))
+                if time.time() - self.last_send_time > 1.0:
+                    self.client_socket.sendall(encode_msg(hb_msg))
+                    self.last_send_time = time.time()
                 if self.pub_suspended:
                     all_topics = get_public_topic()
                     url = all_topics['from_key'][self.client_key]['url']
                     if len(all_topics['from_topic'][url]['subs']) > 0:
                         unsuspend_msg = get_all_msg_types()['_sys_msgs::Unsuspend'].copy()
                         self.client_socket.sendall(encode_msg(unsuspend_msg))
+                        self.last_send_time = time.time()
                         self.pub_suspended = False
                 time.sleep(1)
             except Exception as e:
@@ -173,6 +173,7 @@ class Pipeline(threading.Thread):
         if len(all_topics['from_topic'][url]['subs']) == 0:
             suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
             self.client_socket.sendall(encode_msg(suspend_msg))
+            self.last_send_time = time.time()
             self.pub_suspended = True
 
         enc_msg = encode_msg(topic)
@@ -188,7 +189,7 @@ class Pipeline(threading.Thread):
         if success:
             if '_sys_msgs::Publisher' == msg['type']:
                 if 'topic_type' in msg and 'url' in msg:
-                    error = check_publish_url_type(msg['url'], msg['topic_type'])
+                    error = check_publish_url_type(msg['url'], msg['topic_type'], self.client_key)
                     if self.sub_type is not None:
                         error = 209
                     if error == 0:
@@ -228,16 +229,24 @@ class Pipeline(threading.Thread):
             logger.debug(data)
 
         self.client_socket.sendall(encode_msg(response))
+        self.last_send_time = time.time()
 
     def run(self):
         data = b''
         last_data = b''
         big_msg = 0
         while self.running:
+            tt1 = time.time()
             try:
                 data = self.client_socket.recv(4096)
-            except socket.timeout:
-                pass
+                if not data:
+                    raise TimeoutError('No data arrived.')
+                # print(data)
+            except TimeoutError as e:
+                logger.error("pipline recv: {}".format(e))
+                # print(time.time() - tt1)
+                self.running = False
+                break
             except Exception as e:
                 logger.error("pipline recv: {}".format(e))
                 self.running = False
@@ -295,8 +304,7 @@ class Server(threading.Thread):
         while self.listening:
             try:
                 client_socket, client_address = self.socket_server.accept()
-                client_socket.settimeout(2)
-                # client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack('ll', 5, 0))
+                client_socket.settimeout(5)
                 client_key = random_vcode()
                 while client_key in self.connected_clients.keys():
                     client_key = random_vcode()

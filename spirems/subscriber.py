@@ -34,16 +34,27 @@ class Subscriber(threading.Thread):
         self._link()
         self.running = True
         self.start()
+        heartbeat_thread = threading.Thread(target=self.heartbeat)
+        self.heartbeat_running = True
+        heartbeat_thread.start()
+
+    def heartbeat(self):
+        while self.heartbeat_running:
+            all_types = get_all_msg_types()
+            try:
+                apply_topic = all_types['_sys_msgs::Subscriber'].copy()
+                apply_topic['topic_type'] = self.topic_type
+                apply_topic['url'] = self.topic_url
+                self.client_socket.sendall(encode_msg(apply_topic))
+            except Exception as e:
+                logger.error("heartbeat: {}".format(e))
+            time.sleep(1)
 
     def _link(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.settimeout(5)
         self.client_socket.connect((self.ip, self.port))
-        all_types = get_all_msg_types()
-        apply_topic = all_types['_sys_msgs::Subscriber'].copy()
-        apply_topic['topic_type'] = self.topic_type
-        apply_topic['url'] = self.topic_url
-        self.client_socket.sendall(encode_msg(apply_topic))
+        self.client_socket.settimeout(5)
 
     def _parse_msg(self, msg):
         success, decode_data = decode_msg(msg)
@@ -51,11 +62,27 @@ class Subscriber(threading.Thread):
             print("{:.3f}: {}".format(time.time() - decode_data['timestamp'], decode_data))
 
     def run(self):
+        data = b''
         last_data = b''
         big_msg = 0
         while self.running:
+            tt1 = time.time()
             try:
                 data = self.client_socket.recv(4096)
+                if not data:
+                    raise TimeoutError('No data arrived.')
+                # print('data: {}'.format(data))
+            except TimeoutError as e:
+                logger.error("subscriber recv: {}".format(e))
+                # print(time.time() - tt1)
+                self.running = False
+                data = b''
+            except Exception as e:
+                logger.error("subscriber recv: {}".format(e))
+                self.running = False
+                data = b''
+
+            try:
                 checked_msgs, parted_msg, parted_len = check_msg(data)
 
                 if len(parted_msg) > 0:
@@ -86,9 +113,9 @@ class Subscriber(threading.Thread):
                 except Exception as e:
                     logger.error(e)
                 logger.info('Running={}, Wait ...'.format(self.running))
+                data = b''
                 last_data = b''
-                msg_cnt = 0
-                msg_len = 0
+                big_msg = 0
 
 
 if __name__ == '__main__':

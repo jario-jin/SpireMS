@@ -37,19 +37,30 @@ class Publisher(threading.Thread):
         self.suspended = False
         self.err_cnt = 0
         self.start()
+        heartbeat_thread = threading.Thread(target=self.heartbeat)
+        self.heartbeat_running = True
+        self.publish_available = False
+        heartbeat_thread.start()
+
+    def heartbeat(self):
+        while self.heartbeat_running:
+            all_types = get_all_msg_types()
+            try:
+                apply_topic = all_types['_sys_msgs::Publisher'].copy()
+                apply_topic['topic_type'] = self.topic_type
+                apply_topic['url'] = self.topic_url
+                self.client_socket.sendall(encode_msg(apply_topic))
+            except Exception as e:
+                logger.error("heartbeat: {}".format(e))
+            time.sleep(1)
 
     def _link(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.settimeout(5)
         self.client_socket.connect((self.ip, self.port))
-        all_types = get_all_msg_types()
-        apply_topic = all_types['_sys_msgs::Publisher'].copy()
-        apply_topic['topic_type'] = self.topic_type
-        apply_topic['url'] = self.topic_url
-        self.client_socket.sendall(encode_msg(apply_topic))
 
     def publish(self, topic):
-        if not self.suspended and self.running:
+        if not self.suspended and self.running and self.publish_available:
             try:
                 topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
                 topic_upload['topic'] = topic
@@ -66,6 +77,7 @@ class Publisher(threading.Thread):
         elif success and decode_data['type'] == '_sys_msgs::Result':
             if decode_data['error_code'] == 0:
                 self.err_cnt = 0
+                self.publish_available = True
             else:
                 self.err_cnt += 1
                 if self.err_cnt > 5:
@@ -76,11 +88,27 @@ class Publisher(threading.Thread):
             logger.debug(decode_data)
 
     def run(self):
+        data = b''
         last_data = b''
         big_msg = 0
         while self.running:
+            tt1 = time.time()
             try:
                 data = self.client_socket.recv(4096)
+                if not data:
+                    raise TimeoutError('No data arrived.')
+                # print('data: {}'.format(data))
+            except TimeoutError as e:
+                logger.error("publisher recv: {}".format(e))
+                # print(time.time() - tt1)
+                self.running = False
+                data = b''
+            except Exception as e:
+                logger.error("publisher recv: {}".format(e))
+                self.running = False
+                data = b''
+
+            try:
                 checked_msgs, parted_msg, parted_len = check_msg(data)
 
                 if len(parted_msg) > 0:
@@ -103,6 +131,7 @@ class Publisher(threading.Thread):
                 self.running = False
 
             while not self.running and not self.suspended:
+                self.publish_available = False
                 time.sleep(5)
                 try:
                     self.client_socket.close()
@@ -111,9 +140,9 @@ class Publisher(threading.Thread):
                 except Exception as e:
                     logger.error(e)
                 logger.info('Running={}, Wait ...'.format(self.running))
+                data = b''
                 last_data = b''
-                msg_cnt = 0
-                msg_len = 0
+                big_msg = 0
 
 
 if __name__ == '__main__':

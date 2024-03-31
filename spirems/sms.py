@@ -3,12 +3,12 @@
 import socket
 import time
 
-from msg_helper import (encode_msg, decode_msg, get_all_msg_types, check_msg,
-                        index_msg_header, decode_msg_header)
+from spirems.msg_helper import (encode_msg, decode_msg, get_all_msg_types, check_msg,
+                                index_msg_header, decode_msg_header)
 import sys
 import argparse
 import json
-from subscriber import Subscriber
+from spirems.subscriber import Subscriber
 
 
 def _echo(topic, ip, port):

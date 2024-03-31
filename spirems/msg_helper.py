@@ -6,14 +6,15 @@ import struct
 import json
 import time
 import re
-from log import get_logger
+from spirems.log import get_logger
 
 
 logger = get_logger('MsgHelper')
+msg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'msgs')
 ALL_MSG_TYPES = None
 
 
-def get_all_msg_types(msgs_dir: str = './msgs') -> dict:
+def get_all_msg_types(msgs_dir: str = msg_dir) -> dict:
     global ALL_MSG_TYPES
     if ALL_MSG_TYPES is None:
         types = dict()
@@ -49,13 +50,17 @@ def decode_msg_header(data: bytes) -> int:
     return msg_len
 
 
-def check_msg(data: bytes) -> (list, bytes, int):
+def check_msg(data: bytes) -> (list, list, list):
     # return checked_msgs, parted_msg
     checked_msgs = []
-    parted_msg = b''
-    parted_len = 0
+    parted_msgs = []  # b''
+    parted_lens = []  # 0
     index = index_msg_header(data)
     if index >= 0:
+        if index > 0:
+            parted_msg = data[:index]
+            parted_msgs.append(parted_msg)
+            parted_lens.append(0)
         data = data[index:]
         msg_len = decode_msg_header(data)
         if msg_len > 8:
@@ -76,9 +81,13 @@ def check_msg(data: bytes) -> (list, bytes, int):
             if 8 < msg_len < 1024 * 1024 * 5:  # 5Mb
                 parted_msg = data
                 parted_len = msg_len
+                parted_msgs.append(parted_msg)
+                parted_lens.append(parted_len)
     else:
         parted_msg = data
-    return checked_msgs, parted_msg, parted_len
+        parted_msgs.append(parted_msg)
+        parted_lens.append(0)
+    return checked_msgs, parted_msgs, parted_lens
 
 
 def decode_msg(data: bytes) -> (bool, dict):
@@ -128,12 +137,10 @@ def check_topic_url(topic_url: str) -> int:
 
 
 if __name__ == '__main__':
-    # 定义字典
     all_types = get_all_msg_types()
-    data = all_types['std_msgs::Number']
+    data_ = all_types['std_msgs::Number']
 
-    # 使用 json.dumps() 函数将字典转换为 JSON 字符串
-    msg = encode_msg(data)
+    msg = encode_msg(data_)
     # msg = 'hello'.encode('utf-8') + msg
     print(index_msg_header(b'\xEA\xEC\xFB\xFD'))
     print(msg[index_msg_header(msg):])

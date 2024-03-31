@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-from msg_helper import get_all_msg_types
+from spirems.msg_helper import get_all_msg_types
 
 
 ERROR_CODE_BOOK = {

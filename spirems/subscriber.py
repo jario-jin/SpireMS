@@ -5,9 +5,9 @@ import socket
 import threading
 import time
 
-from log import get_logger
-from msg_helper import (get_all_msg_types, encode_msg, check_topic_url, decode_msg, check_msg,
-                        index_msg_header, decode_msg_header)
+from spirems.log import get_logger
+from spirems.msg_helper import (get_all_msg_types, encode_msg, check_topic_url, decode_msg, check_msg,
+                                index_msg_header, decode_msg_header)
 
 
 logger = get_logger('Subscriber')
@@ -44,6 +44,15 @@ class Subscriber(threading.Thread):
     def kill(self):
         self.force_quit = True
 
+    def wait_key(self):
+        try:
+            while not self.force_quit:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            logger.info('stopped by keyboard')
+            self.kill()
+            self.join()
+
     def heartbeat(self):
         while self.heartbeat_running:
             all_types = get_all_msg_types()
@@ -69,6 +78,8 @@ class Subscriber(threading.Thread):
         if success and decode_data['type'] != '_sys_msgs::HeartBeat' and decode_data['type'] != '_sys_msgs::Result':
             # print("{:.3f}: {}".format(time.time() - decode_data['timestamp'], decode_data))
             self.callback_func(decode_data)
+        elif not success:
+            logger.debug(msg)
 
     def run(self):
         data = b''
@@ -78,7 +89,7 @@ class Subscriber(threading.Thread):
             if self.force_quit:
                 break
             try:
-                data = self.client_socket.recv(4096)
+                data = self.client_socket.recv(262144)  # 256K
                 if not data:
                     raise TimeoutError('No data arrived.')
                 # print('data: {}'.format(data))
@@ -93,21 +104,24 @@ class Subscriber(threading.Thread):
                 data = b''
 
             try:
-                checked_msgs, parted_msg, parted_len = check_msg(data)
+                recv_msgs = []
+                checked_msgs, parted_msgs, parted_lens = check_msg(data)
 
-                if len(parted_msg) > 0:
-                    if parted_len > 0:
-                        last_data = parted_msg
-                        big_msg = parted_len
-                    else:
-                        last_data += parted_msg
-                        if 0 < big_msg <= len(last_data):
-                            checked_msgs.append(last_data[:big_msg])
-                            big_msg = 0
-                            last_data = b''
+                if len(parted_msgs) > 0:
+                    for parted_msg, parted_len in zip(parted_msgs, parted_lens):
+                        if parted_len > 0:
+                            last_data = parted_msg
+                            big_msg = parted_len
+                        else:
+                            last_data += parted_msg
+                            if 0 < big_msg <= len(last_data):
+                                recv_msgs.append(last_data[:big_msg])
+                                big_msg = 0
+                                last_data = b''
 
-                if len(checked_msgs) > 0:
-                    for msg in checked_msgs:
+                recv_msgs.extend(checked_msgs)
+                if len(recv_msgs) > 0:
+                    for msg in recv_msgs:
                         self._parse_msg(msg)
 
             except Exception as e:
@@ -135,5 +149,6 @@ def callback_f(msg):
 
 
 if __name__ == '__main__':
-    sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', callback_f, ip='47.91.115.171')
+    sub = Subscriber('/sensors/hello/a12', 'std_msgs::NumberMultiArray', callback_f,
+                     ip='47.91.115.171')
     # sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', callback_f)

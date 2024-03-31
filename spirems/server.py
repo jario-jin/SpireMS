@@ -6,10 +6,10 @@ import socket
 import random
 import time
 import struct
-from log import get_logger
-from msg_helper import (get_all_msg_types, index_msg_header, decode_msg_header, decode_msg, encode_msg,
-                        check_topic_url, check_msg)
-from error_code import ec2msg
+from spirems.log import get_logger
+from spirems.msg_helper import (get_all_msg_types, index_msg_header, decode_msg_header, decode_msg, encode_msg,
+                                check_topic_url, check_msg)
+from spirems.error_code import ec2msg
 
 
 logger = get_logger('Server')
@@ -236,9 +236,9 @@ class Pipeline(threading.Thread):
         last_data = b''
         big_msg = 0
         while self.running:
-            tt1 = time.time()
+            # tt1 = time.time()
             try:
-                data = self.client_socket.recv(4096)
+                data = self.client_socket.recv(262144)  # 256K
                 if not data:
                     raise TimeoutError('No data arrived.')
                 # print(data)
@@ -252,21 +252,24 @@ class Pipeline(threading.Thread):
                 self.running = False
 
             try:
-                checked_msgs, parted_msg, parted_len = check_msg(data)
+                recv_msgs = []
+                checked_msgs, parted_msgs, parted_lens = check_msg(data)
 
-                if len(parted_msg) > 0:
-                    if parted_len > 0:
-                        last_data = parted_msg
-                        big_msg = parted_len
-                    else:
-                        last_data += parted_msg
-                        if 0 < big_msg <= len(last_data):
-                            checked_msgs.append(last_data[:big_msg])
-                            big_msg = 0
-                            last_data = b''
+                if len(parted_msgs) > 0:
+                    for parted_msg, parted_len in zip(parted_msgs, parted_lens):
+                        if parted_len > 0:
+                            last_data = parted_msg
+                            big_msg = parted_len
+                        else:
+                            last_data += parted_msg
+                            if 0 < big_msg <= len(last_data):
+                                recv_msgs.append(last_data[:big_msg])
+                                big_msg = 0
+                                last_data = b''
 
-                if len(checked_msgs) > 0:
-                    for msg in checked_msgs:
+                recv_msgs.extend(checked_msgs)
+                if len(recv_msgs) > 0:
+                    for msg in recv_msgs:
                         self._parse_msg(msg)
 
             except Exception as e:

@@ -238,7 +238,7 @@ class Pipeline(threading.Thread):
         while self.running:
             # tt1 = time.time()
             try:
-                data = self.client_socket.recv(262144)  # 256K
+                data = self.client_socket.recv(65536)  # 64K
                 if not data:
                     raise TimeoutError('No data arrived.')
                 # print(data)

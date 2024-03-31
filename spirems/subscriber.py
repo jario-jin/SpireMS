@@ -89,7 +89,7 @@ class Subscriber(threading.Thread):
             if self.force_quit:
                 break
             try:
-                data = self.client_socket.recv(262144)  # 256K
+                data = self.client_socket.recv(65536)  # 64K
                 if not data:
                     raise TimeoutError('No data arrived.')
                 # print('data: {}'.format(data))

@@ -71,8 +71,8 @@ def _list(ip, port):
     client_socket.settimeout(5)
     client_socket.connect((ip, port))
 
-    client_socket.send(encode_msg(get_all_msg_types()['_sys_msgs::SmsTopicList']))
-    columns = ['Topics', 'Type']
+    client_socket.send(encode_msg(get_all_msg_types()['_sys_msgs::SmsTopicList'].copy()))
+    columns = ['Topics', 'Type', 'Subscribed-by']
 
     def _parse_msg(res):
         success, decode_data = decode_msg(res)
@@ -82,10 +82,12 @@ def _list(ip, port):
             for t in data:
                 url_type = t.split(',')
                 topics.append(url_type)
-            if len(topics) > 0 and len(topics[0]) == 2:
-                max_widths = [max(len(str(d[i])) for d in topics) for i in range(len(columns))]
+            if len(topics) > 0 and len(topics[0]) == 3:
+                max_widths1 = [max(len(str(d[i])) for d in topics) for i in range(len(columns))]
+                max_widths2 = [len(d) for d in columns]
+                max_widths = [max(w1, w2) for w1, w2 in zip(max_widths1, max_widths2)]
             else:
-                max_widths = [max(len(str(d[i])) for d in columns) for i in range(len(columns))]
+                max_widths = [len(d) for d in columns]
                 topics = []
             for i, column in enumerate(columns):
                 print(f'| {column:>{max_widths[i]}} ', end='')
@@ -102,22 +104,25 @@ def _list(ip, port):
     while True:
         try:
             data = client_socket.recv(4096)
-            checked_msgs, parted_msg, parted_len = check_msg(data)
+            recv_msgs = []
+            checked_msgs, parted_msgs, parted_lens = check_msg(data)
 
-            if len(parted_msg) > 0:
-                if parted_len > 0:
-                    last_data = parted_msg
-                    big_msg = parted_len
-                else:
-                    last_data += parted_msg
-                    if 0 < big_msg <= len(last_data):
-                        checked_msgs.append(last_data[:big_msg])
-                        big_msg = 0
-                        last_data = b''
+            if len(parted_msgs) > 0:
+                for parted_msg, parted_len in zip(parted_msgs, parted_lens):
+                    if parted_len > 0:
+                        last_data = parted_msg
+                        big_msg = parted_len
+                    else:
+                        last_data += parted_msg
+                        if 0 < big_msg <= len(last_data):
+                            recv_msgs.append(last_data[:big_msg])
+                            big_msg = 0
+                            last_data = b''
 
-            if len(checked_msgs) > 0:
+            recv_msgs.extend(checked_msgs)
+            if len(recv_msgs) > 0:
                 _quit = False
-                for msg in checked_msgs:
+                for msg in recv_msgs:
                     if _parse_msg(msg):
                         _quit = True
                         break

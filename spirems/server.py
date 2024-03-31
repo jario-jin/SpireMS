@@ -149,7 +149,7 @@ class Pipeline(threading.Thread):
                 if time.time() - self.last_send_time > 1.0:
                     self.client_socket.sendall(encode_msg(hb_msg))
                     self.last_send_time = time.time()
-                if self.pub_suspended:
+                if self.pub_type is not None:  # self.pub_suspended
                     all_topics = get_public_topic()
                     url = all_topics['from_key'][self.client_key]['url']
                     if len(all_topics['from_topic'][url]['subs']) > 0:
@@ -215,7 +215,7 @@ class Pipeline(threading.Thread):
                 response['error_code'] = 0
                 url_types = []
                 for key, val in get_public_topic()['from_topic'].items():
-                    url_types.append(key + "," + val['type'])
+                    url_types.append(key + "," + val['type'] + "," + str(len(val['subs'])))
                 response['data'] = ";".join(url_types)
             elif '_sys_msgs::TopicUpload' == msg['type']:
                 if self.pub_type is None:

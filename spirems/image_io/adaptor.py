@@ -32,10 +32,11 @@ def sms2cvimg(sms: dict) -> np.ndarray:
 if __name__ == '__main__':
     cap = cv2.VideoCapture(0)
     pub = Publisher('/sensors/camera/image_raw', 'sensor_msgs::Image',
-                    ip='127.0.0.1')  # 47.91.115.171
+                    ip='47.91.115.171')  # 47.91.115.171
     while True:
         try:
             ret, img1 = cap.read()
+            img1 = cv2.resize(img1, (640, 360))
             sms = cvimg2sms(img1)
             pub.publish(sms)
             # img2 = sms2cvimg(sms)

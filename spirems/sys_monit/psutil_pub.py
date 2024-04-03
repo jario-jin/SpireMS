@@ -65,7 +65,7 @@ if __name__ == '__main__':
                     ip='47.91.115.171')
 
     while True:
-        time.sleep(1)
+        # time.sleep(1)
         msg_num = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
         msg_num['data'] = cpu_monit()
         pub.publish(msg_num)

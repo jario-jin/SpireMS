@@ -60,7 +60,7 @@ def cpu_monit():
     return values
 
 
-if __name__ == '__main__':
+def a2rl_pub():
     pub = Publisher('/a2rl/monit', 'std_msgs::NumberMultiArray',
                     ip='47.91.115.171')
 
@@ -69,3 +69,7 @@ if __name__ == '__main__':
         msg_num = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
         msg_num['data'] = cpu_monit()
         pub.publish(msg_num)
+
+
+if __name__ == '__main__':
+    a2rl_pub()

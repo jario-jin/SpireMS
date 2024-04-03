@@ -38,7 +38,7 @@ def cpu_monit():
     # logger.debug("net_io_counters.packets_sent: {}".format(net_io_counters.packets_sent))
     # logger.debug("net_io_counters.packets_recv: {}".format(net_io_counters.packets_recv))
 
-    disk_usage = psutil.disk_usage('C:/')
+    disk_usage = psutil.disk_usage('/')
     # logger.debug("disk_usage: {}".format(disk_usage))
     # logger.debug("disk_usage.total: {}".format(disk_usage.total / 1024 / 1024 / 1024))
     # logger.debug("disk_usage.free: {}".format(disk_usage.free / 1024 / 1024 / 1024))
@@ -53,9 +53,10 @@ def cpu_monit():
     # logger.debug("disk_io_counters.read_count: {}".format(disk_io_counters.read_count))
     # logger.debug("disk_io_counters.write_count: {}".format(disk_io_counters.write_count))
 
-    # sensors_temperatures = psutil.sensors_temperatures()
+    sensors_temperatures = psutil.sensors_temperatures()
     # logger.debug("sensors_temperatures: {}".format(sensors_temperatures))
-    # logger.debug("sensors_temperatures.coretemp: {}".format(sensors_temperatures['coretemp']))
+    logger.debug("sensors_temperatures.coretemp: {}".format(sensors_temperatures['coretemp'][0].current))
+    values.append(sensors_temperatures['coretemp'][0].current)
     return values
 
 

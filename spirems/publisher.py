@@ -100,7 +100,7 @@ class Publisher(threading.Thread):
                 if self.err_cnt > 5:
                     self.suspended = True
                     self.running = False
-            logger.debug(decode_data)
+            # logger.debug(decode_data)
         elif success and decode_data['type'] != '_sys_msgs::HeartBeat':
             logger.debug(decode_data)
 

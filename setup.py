@@ -37,4 +37,6 @@ setuptools.setup(
     package_dir={'spirems': 'spirems'},
     package_data=get_package_data(),
     packages=setuptools.find_packages(),
+    scripts=['spirems/sms.py'],
+    install_requires=("numpy", "opencv-python", "psutil"),
 )

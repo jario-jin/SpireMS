@@ -290,7 +290,7 @@ class Pipeline(threading.Thread):
 
 
 class Server(threading.Thread):
-    def __init__(self, port=9000):
+    def __init__(self, port=9094):
         threading.Thread.__init__(self)
         socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

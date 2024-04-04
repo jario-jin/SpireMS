@@ -23,6 +23,7 @@ def get_package_data():
     data.append('msgs/_sys_msgs/*.json')
     data.append('msgs/sensor_msgs/*.json')
     data.append('msgs/std_msgs/*.json')
+    data.append('logs/*.md')
     return {'spirems': data}
 
 
@@ -33,8 +34,13 @@ setuptools.setup(
     author_email="renjin@bit.edu.cn",
     python_requires=">=3.8",
     long_description=long_description,
+    long_description_content_type='text/markdown',
     classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent"],
-    package_dir={'spirems': 'spirems'},
+    package_dir={
+        'spirems': 'spirems',
+        'spirems.image_io': 'spirems/image_io',
+        'spirems.sys_monit': 'spirems/sys_monit'
+    },
     package_data=get_package_data(),
     packages=setuptools.find_packages(),
     scripts=['spirems/sms.py'],

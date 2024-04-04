@@ -15,14 +15,13 @@ pip install spirems
 ```Python
 from spirems import Server
 server = Server()
-server.start()
+server.listen()
 ```
 
 2.  Publish topics
 ```Python
 from spirems import Publisher, get_all_msg_types
 pub = Publisher('/topic/hello', 'std_msgs::String')
-pub.publish()
 msg = get_all_msg_types()['std_msgs::String'].copy()
 msg['data'] = 'hello world!'
 pub.publish(msg)

@@ -170,7 +170,7 @@ class Publisher(threading.Thread):
 
 if __name__ == '__main__':
     pub = Publisher('/sensors/hello/a12', 'std_msgs::NumberMultiArray',
-                    ip='47.91.115.171')
+                    ip='127.0.0.1')
     # pub = Publisher('/hello1', 'std_msgs::NumberMultiArray')
     cnt = 0
     while True:

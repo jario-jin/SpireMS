@@ -16,7 +16,7 @@ pip install spirems
 ```Python
 from spirems import Server
 server = Server()
-server.start()
+server.listen()
 ```
 
 2.  发布话题

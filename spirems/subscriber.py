@@ -150,5 +150,5 @@ def callback_f(msg):
 
 if __name__ == '__main__':
     sub = Subscriber('/sensors/hello/a12', 'std_msgs::NumberMultiArray', callback_f,
-                     ip='47.91.115.171')
+                     ip='127.0.0.1')
     # sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', callback_f)

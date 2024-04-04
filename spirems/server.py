@@ -292,16 +292,19 @@ class Pipeline(threading.Thread):
 class Server(threading.Thread):
     def __init__(self, port=9094):
         threading.Thread.__init__(self)
-        socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        socket_server.settimeout(5)
-        socket_server.bind(('', port))
-        socket_server.listen(512)
-
-        logger.info('Start listening on port {} ...'.format(port))
-        self.socket_server = socket_server
-        self.listening = True
+        self.socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.port = port
+        self.listening = False
         self.connected_clients = dict()
+
+    def listen(self):
+        self.socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket_server.settimeout(5)
+        self.socket_server.bind(('', self.port))
+        self.socket_server.listen(512)
+        logger.info('Start listening on port {} ...'.format(self.port))
+        self.listening = True
+        self.start()
 
     def run(self):
         while self.listening:
@@ -344,4 +347,4 @@ class Server(threading.Thread):
 
 if __name__ == '__main__':
     server = Server(9094)
-    server.start()
+    server.listen()

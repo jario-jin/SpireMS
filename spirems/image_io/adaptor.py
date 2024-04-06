@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-import cv2
+try:
+    import cv2
+except Exception as e:
+    pass
 import numpy as np
 import base64
 from spirems.msg_helper import get_all_msg_types

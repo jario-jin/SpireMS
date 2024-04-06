@@ -138,15 +138,45 @@ class Pipeline(threading.Thread):
         self.sub_type = None
         self._quit = False
         self.pub_suspended = False
+        self.sub_suspended = False
+        self.pass_id = 0
+        self.passed_ids = dict()  # already passed IDs
         self.last_send_time = time.time()
+        self.last_upload_time = 0.0
+        self.transmission_delay = 0.0  # second
+        self.package_loss_rate = 0.0  # 0-100 %
         heartbeat_thread = threading.Thread(target=self.heartbeat)
         heartbeat_thread.start()
+
+    def _delay_packet_loss_rate(self):
+        delay = 0.0
+        delay_cnt = 0
+        package_loss_rate = 0.0
+        package_len = len(self.passed_ids)
+        invalid_keys = []
+        for key, val in self.passed_ids.items():
+            if val[1] >= 0:
+                delay += val[1]
+                delay_cnt += 1
+            if time.time() - val[0] > 3:  # keep 3 second for each msg
+                invalid_keys.append(key)
+                package_loss_rate += 1
+
+        for key in invalid_keys:
+            del self.passed_ids[key]
+
+        if delay_cnt > 0:
+            delay = delay / delay_cnt
+        self.transmission_delay = delay
+        if package_len > 0:
+            package_loss_rate = package_loss_rate / package_len
+        self.package_loss_rate = package_loss_rate
 
     def heartbeat(self):
         while self.running:
             hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
             try:
-                if time.time() - self.last_send_time > 1.0:
+                if time.time() - self.last_send_time >= 1.0:
                     self.client_socket.sendall(encode_msg(hb_msg))
                     self.last_send_time = time.time()
                 if self.pub_type is not None:  # self.pub_suspended
@@ -157,6 +187,8 @@ class Pipeline(threading.Thread):
                         self.client_socket.sendall(encode_msg(unsuspend_msg))
                         self.last_send_time = time.time()
                         self.pub_suspended = False
+                if self.sub_type is not None:  # catch delay issue
+                    self._delay_packet_loss_rate()
                 time.sleep(1)
             except Exception as e:
                 logger.error("heartbeat: {}".format(e))
@@ -167,7 +199,19 @@ class Pipeline(threading.Thread):
                 self.quit()
                 self._server.quit(self.client_key)
 
-    def _forwarding_topic(self, topic: dict):
+    def sub_forwarding_topic(self, topic: dict):
+        # print(self.transmission_delay)
+        if not self.sub_suspended and time.time() - self.last_upload_time > self.transmission_delay:
+            self.pass_id += 1
+            passed_msg = get_all_msg_types()['_sys_msgs::TopicDown'].copy()
+            passed_msg['id'] = self.pass_id
+            passed_msg['topic'] = topic
+            self.passed_ids[self.pass_id] = [time.time(), -1]  # Now, Delay
+            self.client_socket.sendall(encode_msg(passed_msg))
+            self.last_send_time = time.time()
+            self.last_upload_time = time.time()
+
+    def _pub_forwarding_topic(self, topic: dict):
         all_topics = get_public_topic()
         url = all_topics['from_key'][self.client_key]['url']
         if len(all_topics['from_topic'][url]['subs']) == 0:
@@ -176,15 +220,17 @@ class Pipeline(threading.Thread):
             self.last_send_time = time.time()
             self.pub_suspended = True
 
-        enc_msg = encode_msg(topic)
+        # enc_msg = encode_msg(topic)
+        # print(topic)
         for sub in all_topics['from_topic'][url]['subs']:
             try:
-                self._server.msg_forwarding(sub, enc_msg)
+                self._server.msg_forwarding(sub, topic)
             except Exception as e:
                 logger.debug('ForwardException: {}'.format(e))
 
     def _parse_msg(self, data: bytes):
         response = get_all_msg_types()['_sys_msgs::Result'].copy()
+        no_reply = False
         success, msg = decode_msg(data)
         if success:
             if '_sys_msgs::Publisher' == msg['type']:
@@ -211,6 +257,12 @@ class Pipeline(threading.Thread):
                         response = ec2msg(error)
                 else:
                     response = ec2msg(206)
+            elif '_sys_msgs::Suspend' == msg['type'] and self.sub_type is not None:
+                self.sub_suspended = True
+                no_reply = True
+            elif '_sys_msgs::Unsuspend' == msg['type'] and self.sub_type is not None:
+                self.sub_suspended = False
+                no_reply = True
             elif '_sys_msgs::SmsTopicList' == msg['type']:
                 response['error_code'] = 0
                 url_types = []
@@ -218,18 +270,28 @@ class Pipeline(threading.Thread):
                     url_types.append(key + "," + val['type'] + "," + str(len(val['subs'])))
                 response['data'] = ";".join(url_types)
             elif '_sys_msgs::TopicUpload' == msg['type']:
+                response['id'] = msg['id']
+                # response['data'] = msg['timestamp']
                 if self.pub_type is None:
                     response = ec2msg(207)
                 elif 'topic' in msg and 'type' in msg['topic'] and msg['topic']['type'] == self.pub_type:
-                    self._forwarding_topic(msg['topic'])
+                    self._pub_forwarding_topic(msg['topic'])
                 else:
                     response = ec2msg(208)
+            elif '_sys_msgs::Result' == msg['type']:
+                if self.sub_type is not None and msg['id'] in self.passed_ids:
+                    recv_id = msg['id']
+                    self.passed_ids[recv_id][1] = time.time() - self.passed_ids[recv_id][0]
+                no_reply = True
+            else:
+                no_reply = True
         else:
             response = ec2msg(101)
             logger.debug(data)
 
-        self.client_socket.sendall(encode_msg(response))
-        self.last_send_time = time.time()
+        if not no_reply:
+            self.client_socket.sendall(encode_msg(response))
+            self.last_send_time = time.time()
 
     def run(self):
         data = b''
@@ -322,9 +384,9 @@ class Server(threading.Thread):
             except socket.timeout:
                 pass
 
-    def msg_forwarding(self, client_key: str, msg: bytes):
+    def msg_forwarding(self, client_key: str, topic: dict):
         if client_key in self.connected_clients:
-            self.connected_clients[client_key].client_socket.sendall(msg)
+            self.connected_clients[client_key].sub_forwarding_topic(topic)
 
     def quit(self, client_key=None):
         if client_key is None:

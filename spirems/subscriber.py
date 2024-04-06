@@ -33,8 +33,12 @@ class Subscriber(threading.Thread):
         if url_state != 0:
             raise ValueError('The input topic_url is invalid, please verify...')
 
+        self.last_send_time = 0.0
         self.force_quit = False
-        self._link()
+        try:
+            self._link()
+        except Exception as e:
+            pass
         self.running = True
         self.start()
         heartbeat_thread = threading.Thread(target=self.heartbeat)
@@ -57,10 +61,12 @@ class Subscriber(threading.Thread):
         while self.heartbeat_running:
             all_types = get_all_msg_types()
             try:
-                apply_topic = all_types['_sys_msgs::Subscriber'].copy()
-                apply_topic['topic_type'] = self.topic_type
-                apply_topic['url'] = self.topic_url
-                self.client_socket.sendall(encode_msg(apply_topic))
+                if time.time() - self.last_send_time >= 1.0:
+                    apply_topic = all_types['_sys_msgs::Subscriber'].copy()
+                    apply_topic['topic_type'] = self.topic_type
+                    apply_topic['url'] = self.topic_url
+                    self.client_socket.sendall(encode_msg(apply_topic))
+                    self.last_send_time = time.time()
             except Exception as e:
                 logger.error("heartbeat: {}".format(e))
             time.sleep(1)
@@ -73,11 +79,33 @@ class Subscriber(threading.Thread):
         self.client_socket.connect((self.ip, self.port))
         self.client_socket.settimeout(5)
 
+    def suspend(self):
+        if self.running:
+            try:
+                suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
+                self.client_socket.sendall(encode_msg(suspend_msg))
+                self.last_send_time = time.time()
+            except Exception as e:
+                pass
+
+    def unsuspend(self):
+        if self.running:
+            try:
+                suspend_msg = get_all_msg_types()['_sys_msgs::Unsuspend'].copy()
+                self.client_socket.sendall(encode_msg(suspend_msg))
+                self.last_send_time = time.time()
+            except Exception as e:
+                pass
+
     def _parse_msg(self, msg):
+        response = get_all_msg_types()['_sys_msgs::Result'].copy()
         success, decode_data = decode_msg(msg)
-        if success and decode_data['type'] != '_sys_msgs::HeartBeat' and decode_data['type'] != '_sys_msgs::Result':
+        if success and decode_data['type'] == '_sys_msgs::TopicDown':
             # print("{:.3f}: {}".format(time.time() - decode_data['timestamp'], decode_data))
-            self.callback_func(decode_data)
+            self.callback_func(decode_data['topic'])
+            response['id'] = decode_data['id']
+            self.client_socket.sendall(encode_msg(response))
+            self.last_send_time = time.time()
         elif not success:
             logger.debug(msg)
 
@@ -151,4 +179,15 @@ def callback_f(msg):
 if __name__ == '__main__':
     sub = Subscriber('/sensors/hello/a12', 'std_msgs::NumberMultiArray', callback_f,
                      ip='127.0.0.1')
+    sus = False
+    while True:
+        if not sus:
+            print("sub.suspend()")
+            sub.suspend()
+            sus = True
+        else:
+            print("sub.unsuspend()")
+            sub.unsuspend()
+            sus = False
+        time.sleep(10)
     # sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', callback_f)

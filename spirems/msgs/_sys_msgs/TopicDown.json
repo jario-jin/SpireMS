@@ -1,5 +1,5 @@
 {
-	"type": "_sys_msgs::TopicUpload",
+	"type": "_sys_msgs::TopicDown",
 	"timestamp": 0.0,
 	"id": 0,
 	"topic": {}

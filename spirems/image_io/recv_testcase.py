@@ -9,7 +9,7 @@ import cv2
 def callback_f(msg):
     # print(time.time() - msg['timestamp'])
     img2 = sms2cvimg(msg)
-    img2 = cv2.resize(img2, (1280, 720))
+    # img2 = cv2.resize(img2, (1280, 720))
     cv2.imshow('img', img2)
     cv2.waitKey(5)
 

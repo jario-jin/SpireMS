@@ -32,15 +32,23 @@ class Publisher(threading.Thread):
         if url_state != 0:
             raise ValueError('The input topic_url is invalid, please verify...')
 
+        self.upload_id = 0
+        self.last_send_time = 0.0
+        self.last_upload_time = 0.0
+        self.uploaded_ids = dict()  # already uploaded IDs
+        self.transmission_delay = 0.0  # second
+        self.package_loss_rate = 0.0  # 0-100 %
         self.force_quit = False
-        self._link()
+        try:
+            self._link()
+        except Exception as e:
+            pass
         self.running = True
         self.suspended = False
         self.err_cnt = 0
         self.start()
         heartbeat_thread = threading.Thread(target=self.heartbeat)
         self.heartbeat_running = True
-        self.publish_available = False
         heartbeat_thread.start()
 
     def kill(self):
@@ -55,6 +63,30 @@ class Publisher(threading.Thread):
             self.kill()
             self.join()
 
+    def _delay_packet_loss_rate(self):
+        delay = 0.0
+        delay_cnt = 0
+        package_loss_rate = 0.0
+        package_len = len(self.uploaded_ids)
+        invalid_keys = []
+        for key, val in self.uploaded_ids.items():
+            if val[1] >= 0:
+                delay += val[1]
+                delay_cnt += 1
+            if time.time() - val[0] > 5:  # keep 5 second for each msg
+                invalid_keys.append(key)
+                package_loss_rate += 1
+
+        for key in invalid_keys:
+            del self.uploaded_ids[key]
+
+        if delay_cnt > 0:
+            delay = delay / delay_cnt
+        self.transmission_delay = delay
+        if package_len > 0:
+            package_loss_rate = package_loss_rate / package_len
+        self.package_loss_rate = package_loss_rate
+
     def heartbeat(self):
         while self.heartbeat_running:
             all_types = get_all_msg_types()
@@ -62,7 +94,11 @@ class Publisher(threading.Thread):
                 apply_topic = all_types['_sys_msgs::Publisher'].copy()
                 apply_topic['topic_type'] = self.topic_type
                 apply_topic['url'] = self.topic_url
-                self.client_socket.sendall(encode_msg(apply_topic))
+                if time.time() - self.last_send_time >= 1.0:
+                    self.client_socket.sendall(encode_msg(apply_topic))
+                    self.last_send_time = time.time()
+
+                self._delay_packet_loss_rate()
             except Exception as e:
                 logger.error("heartbeat: {}".format(e))
             time.sleep(1)
@@ -75,14 +111,25 @@ class Publisher(threading.Thread):
         self.client_socket.connect((self.ip, self.port))
 
     def publish(self, topic) -> bool:
-        if not self.suspended and self.running and self.publish_available:
-            try:
-                topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
-                topic_upload['topic'] = topic
-                self.client_socket.sendall(encode_msg(topic_upload))
-                return True
-            except socket.timeout:
-                pass
+        if not self.suspended and self.running:
+            if time.time() - self.last_upload_time > self.transmission_delay:
+                try:
+                    # print("avg_delay: {}".format(self.transmission_delay))
+                    topic = topic.copy()
+                    topic['timestamp'] = time.time()
+                    topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
+                    topic_upload['topic'] = topic
+                    self.upload_id += 1
+                    topic_upload['id'] = self.upload_id
+                    self.uploaded_ids[self.upload_id] = [time.time(), -1]  # Now, Delay
+                    self.client_socket.sendall(encode_msg(topic_upload))
+                    self.last_send_time = time.time()
+                    self.last_upload_time = time.time()
+                    return True
+                except socket.timeout:
+                    pass
+            else:
+                logger.warn("There is a large network delay ({}), suspend sending once.".format(self.transmission_delay))
         return False
 
     def _parse_msg(self, msg):
@@ -92,15 +139,17 @@ class Publisher(threading.Thread):
         elif success and decode_data['type'] == '_sys_msgs::Unsuspend':
             self.suspended = False
         elif success and decode_data['type'] == '_sys_msgs::Result':
-            if decode_data['error_code'] == 0:
+            if decode_data['id'] > 0:
                 self.err_cnt = 0
-                self.publish_available = True
-            else:
+                recv_id = decode_data['id']
+                # print(decode_data['id'])
+                if recv_id in self.uploaded_ids:
+                    self.uploaded_ids[recv_id][1] = time.time() - self.uploaded_ids[recv_id][0]
+            if decode_data['error_code'] > 0:
                 self.err_cnt += 1
                 if self.err_cnt > 5:
                     self.suspended = True
-                    self.running = False
-            # logger.debug(decode_data)
+            # logger.debug("{}, {}".format(self.suspended, decode_data))
         elif success and decode_data['type'] != '_sys_msgs::HeartBeat':
             logger.debug(decode_data)
 
@@ -154,12 +203,13 @@ class Publisher(threading.Thread):
             while not self.running:
                 if self.force_quit:
                     break
-                self.publish_available = False
+                self.suspended = True
                 time.sleep(5)
                 try:
                     self.client_socket.close()
                     self._link()
                     self.running = True
+                    self.suspended = False
                 except Exception as e:
                     logger.error(e)
                 logger.info('Running={}, Wait ...'.format(self.running))
@@ -174,10 +224,10 @@ if __name__ == '__main__':
     # pub = Publisher('/hello1', 'std_msgs::NumberMultiArray')
     cnt = 0
     while True:
-        time.sleep(0.05)
+        time.sleep(0.2)
         tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
         tpc['data'] = [random.random() for i in range(2)]
-        if cnt == 0:
-            tpc['type'] = 'std_msgs::Number'
+        # if cnt == 0:
+        #     tpc['type'] = 'std_msgs::Number'
         pub.publish(tpc)
         cnt += 1

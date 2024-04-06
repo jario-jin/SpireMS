@@ -1,6 +1,7 @@
 {
 	"type": "_sys_msgs::Result",
 	"timestamp": 0.0,
+	"id": 0,
 	"error_code": 0,
 	"data": ""
 }

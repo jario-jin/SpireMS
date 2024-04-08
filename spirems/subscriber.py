@@ -172,13 +172,21 @@ class Subscriber(threading.Thread):
                 big_msg = 0
 
 
+max_dt = 0
+
+
 def callback_f(msg):
-    print(msg)
+    global max_dt
+    if time.time() - msg['timestamp'] > max_dt:
+        max_dt = time.time() - msg['timestamp']
+        print("Dt: {}".format(max_dt))
 
 
 if __name__ == '__main__':
     sub = Subscriber('/sensors/hello/a12', 'std_msgs::NumberMultiArray', callback_f,
                      ip='127.0.0.1')
+    # sub.wait_key()
+
     sus = False
     while True:
         if not sus:
@@ -190,4 +198,4 @@ if __name__ == '__main__':
             sub.unsuspend()
             sus = False
         time.sleep(10)
-    # sub = Subscriber('/hello1', 'std_msgs::NumberMultiArray', callback_f)
+

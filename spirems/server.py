@@ -136,6 +136,7 @@ class Pipeline(threading.Thread):
         self.running = True
         self.pub_type = None
         self.sub_type = None
+        self.sub_url = None
         self._quit = False
         self.pub_suspended = False
         self.sub_suspended = False
@@ -158,7 +159,7 @@ class Pipeline(threading.Thread):
             if val[1] >= 0:
                 delay += val[1]
                 delay_cnt += 1
-            if time.time() - val[0] > 3:  # keep 3 second for each msg
+            if time.time() - val[0] > 5:  # keep 5 second for each msg
                 invalid_keys.append(key)
                 package_loss_rate += 1
 
@@ -252,16 +253,20 @@ class Pipeline(threading.Thread):
                         error = 209
                     if error == 0:
                         self.sub_type = msg['topic_type']
-                        update_subscriber(msg['url'], msg['topic_type'], self.client_key)
+                        self.sub_url = msg['url']
+                        if not self.sub_suspended:
+                            update_subscriber(self.sub_url, self.sub_type, self.client_key)
                     else:
                         response = ec2msg(error)
                 else:
                     response = ec2msg(206)
             elif '_sys_msgs::Suspend' == msg['type'] and self.sub_type is not None:
                 self.sub_suspended = True
+                remove_subscriber(self.client_key)
                 no_reply = True
             elif '_sys_msgs::Unsuspend' == msg['type'] and self.sub_type is not None:
                 self.sub_suspended = False
+                update_subscriber(self.sub_url, self.sub_type, self.client_key)
                 no_reply = True
             elif '_sys_msgs::SmsTopicList' == msg['type']:
                 response['error_code'] = 0

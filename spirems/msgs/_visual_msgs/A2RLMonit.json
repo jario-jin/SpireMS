@@ -1,0 +1,42 @@
+{
+	"type": "_visual_msgs::A2RLMonit",
+	"timestamp": 0.0,
+	"bar_chart_items": [
+		{
+			"posx": 0,
+			"posy": 0,
+			"title": "CPU",
+			"title_refresh": "{:.1f}%",
+			"val": 0,
+			"val_min": 0,
+			"val_max": 100 
+		},
+		{
+			"posx": 80,
+			"posy": 0,
+			"title": "Mem",
+			"title_refresh": "{:.1f}G",
+			"val": 0,
+			"val_min": 0,
+			"val_max": 128
+		},
+		{
+			"posx": 160,
+			"posy": 0,
+			"title": "Disk",
+			"title_refresh": "{:.1f}TB",
+			"val": 0,
+			"val_min": 0,
+			"val_max": 15.2
+		},
+		{
+			"posx": 240,
+			"posy": 0,
+			"title": "Temp",
+			"title_refresh": "{:.1f}C",
+			"val": 0,
+			"val_min": 0,
+			"val_max": 100
+		}
+	]
+}

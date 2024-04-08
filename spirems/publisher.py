@@ -224,9 +224,10 @@ if __name__ == '__main__':
     # pub = Publisher('/hello1', 'std_msgs::NumberMultiArray')
     cnt = 0
     while True:
-        time.sleep(0.2)
+        time.sleep(0.1)
         tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
-        tpc['data'] = [random.random() for i in range(2)]
+        tpc['data'] = [random.random() for i in range(20000)]
+        # print(len(encode_msg(tpc)) / 1024 / 1024)
         # if cnt == 0:
         #     tpc['type'] = 'std_msgs::Number'
         pub.publish(tpc)

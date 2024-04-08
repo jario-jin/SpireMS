@@ -144,40 +144,48 @@ if __name__ == '__main__':
                 print('press key: {}'.format(0))
                 img2_on = False
                 img = default_img
+                sub.suspend()
             elif c == 49:  # 1
                 print('press key: {}'.format(1))
                 num_tpc['data'] = 1
                 pub.publish(num_tpc)
+                sub.unsuspend()
                 img2_on = True
             elif c == 50:  # 2
                 print('press key: {}'.format(2))
                 num_tpc['data'] = 2
                 pub.publish(num_tpc)
+                sub.unsuspend()
                 img2_on = True
             elif c == 51:  # 3
                 print('press key: {}'.format(3))
                 num_tpc['data'] = 3
                 pub.publish(num_tpc)
+                sub.unsuspend()
                 img2_on = True
             elif c == 52:  # 4
                 print('press key: {}'.format(4))
                 num_tpc['data'] = 4
                 pub.publish(num_tpc)
+                sub.unsuspend()
                 img2_on = True
             elif c == 53:  # 5
                 print('press key: {}'.format(5))
                 num_tpc['data'] = 5
                 pub.publish(num_tpc)
+                sub.unsuspend()
                 img2_on = True
             elif c == 54:  # 6
                 print('press key: {}'.format(6))
                 num_tpc['data'] = 6
                 pub.publish(num_tpc)
+                sub.unsuspend()
                 img2_on = True
             elif c == 55:  # 7
                 print('press key: {}'.format(7))
                 num_tpc['data'] = 7
                 pub.publish(num_tpc)
+                sub.unsuspend()
                 img2_on = True
             else:
                 print(c)

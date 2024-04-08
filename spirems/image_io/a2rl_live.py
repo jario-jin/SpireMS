@@ -4,7 +4,7 @@ from spirems.subscriber import Subscriber
 from spirems.publisher import Publisher
 from spirems.image_io.adaptor import sms2cvimg
 from spirems import get_all_msg_types
-from spirems.image_io.visual_helper import draw_charts
+from spirems.image_io.visual_helper import draw_charts, load_a2rl_logo
 import cv2
 import numpy as np
 
@@ -45,7 +45,7 @@ if __name__ == '__main__':
                       ip='47.91.115.171')  # 47.91.115.171
     num_tpc = get_all_msg_types()['std_msgs::Number'].copy()
     running = True
-    default_img = cv2.imread('../res/racecar.jpg')
+    default_img = load_a2rl_logo()
     default_img = cv2.resize(default_img, (1280, 720))
     img = default_img
     while running:

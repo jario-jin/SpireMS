@@ -2,13 +2,20 @@
 # -*- coding:utf-8 -*-
 import numpy as np
 import cv2
+import os
 from PIL import ImageFont, ImageDraw, Image
 
 
-font_path = '../res/fradmcn.ttf'
+font_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../res/fradmcn.ttf')
 font_size = 17
 font_color = (255, 255, 255)
 font = ImageFont.truetype(font_path, font_size)
+
+
+def load_a2rl_logo() -> np.ndarray:
+    img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../res/racecar.jpg')
+    default_img = cv2.imread(img_path)
+    return default_img
 
 
 def draw_charts(img: np.ndarray, visual_msg: dict) -> np.ndarray:

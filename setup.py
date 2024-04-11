@@ -26,6 +26,8 @@ def get_package_data():
     data.append('logs/*.md')
     data.append('res/*.ttf')
     data.append('res/*.jpg')
+    data.append('res/*.csv')
+    data.append('res/*.json')
     return {'spirems': data}
 
 

@@ -37,6 +37,33 @@
 			"val": 0,
 			"val_min": 0,
 			"val_max": 100
+		},
+		{
+			"posx": 320,
+			"posy": 0,
+			"title": "Water",
+			"title_refresh": "{:.1f}C",
+			"val": 0,
+			"val_min": 0,
+			"val_max": 100
+		},
+		{
+			"posx": 400,
+			"posy": 0,
+			"title": "Oil",
+			"title_refresh": "{:.1f}C",
+			"val": 0,
+			"val_min": 0,
+			"val_max": 100
+		},
+		{
+			"posx": 480,
+			"posy": 0,
+			"title": "RPM",
+			"title_refresh": "{}",
+			"val": 0,
+			"val_min": 0,
+			"val_max": 20000
 		}
 	]
 }

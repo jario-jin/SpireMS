@@ -52,7 +52,6 @@ def callback_ego_loc(msg):
     # print(position_y)
     # position_z = msg['data'][2]
     orientation_z = msg['data'][2]
-    print(orientation_z)
     velocity_x = msg['data'][3]
     # print(velocity_x)
     velocity_y = msg['data'][4]
@@ -60,6 +59,13 @@ def callback_ego_loc(msg):
     acceleration_x = msg['data'][5]
     acceleration_y = msg['data'][6]
     acceleration = np.sqrt(acceleration_x ** 2 + acceleration_y ** 2)
+    ice_water_temp = msg['data'][7]
+    ice_oil_temp = msg['data'][8]
+    ice_engine_speed = msg['data'][9]
+    a2rl_visual["bar_chart_items"][4]['val'] = ice_water_temp
+    print(msg['data'])
+    a2rl_visual["bar_chart_items"][5]['val'] = ice_oil_temp
+    a2rl_visual["bar_chart_items"][6]['val'] = ice_engine_speed
 
 
 if __name__ == '__main__':
@@ -78,6 +84,8 @@ if __name__ == '__main__':
     default_img = cv2.resize(default_img, (1280, 720))
     img = default_img
     use_local = False
+    cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     while running:
         if img2_on and img2_ready and img2 is not None:
             img = img2.copy()
@@ -85,6 +93,7 @@ if __name__ == '__main__':
         img_show = draw_charts(img, a2rl_visual)
         img_show = draw_track_map(img_show, left_line, right_line, (map_w, map_h),
                                   (position_x, position_y), orientation_z, velocity, acceleration, use_local)
+
         cv2.imshow('img', img_show)
         c = cv2.waitKey(5)
         if c > 0:

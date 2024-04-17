@@ -42,10 +42,11 @@ position_z = 0
 orientation_z = 0
 velocity = 0
 acceleration = 0
+lateral_error = 0
 
 
 def callback_ego_loc(msg):
-    global position_x, position_y, position_z, orientation_z, velocity, acceleration
+    global position_x, position_y, position_z, orientation_z, velocity, acceleration, lateral_error
     position_x = msg['data'][0]
     # print(position_x)
     position_y = msg['data'][1]
@@ -62,10 +63,12 @@ def callback_ego_loc(msg):
     ice_water_temp = msg['data'][7]
     ice_oil_temp = msg['data'][8]
     ice_engine_speed = msg['data'][9]
+    lateral_error = msg['data'][10]
     a2rl_visual["bar_chart_items"][4]['val'] = ice_water_temp
     print(msg['data'])
     a2rl_visual["bar_chart_items"][5]['val'] = ice_oil_temp
-    a2rl_visual["bar_chart_items"][6]['val'] = ice_engine_speed
+    a2rl_visual["bar_chart_items"][6]['val'] = int(ice_engine_speed)
+    a2rl_visual["bar_chart_items"][7]['val'] = lateral_error
 
 
 if __name__ == '__main__':
@@ -84,15 +87,15 @@ if __name__ == '__main__':
     default_img = cv2.resize(default_img, (1280, 720))
     img = default_img
     use_local = False
-    cv2.namedWindow('img', cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    # cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+    # cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     while running:
         if img2_on and img2_ready and img2 is not None:
             img = img2.copy()
             img = cv2.resize(img, (1280, 720))
         img_show = draw_charts(img, a2rl_visual)
         img_show = draw_track_map(img_show, left_line, right_line, (map_w, map_h),
-                                  (position_x, position_y), orientation_z, velocity, acceleration, use_local)
+                                  (position_x, position_y), orientation_z, velocity, acceleration)
 
         cv2.imshow('img', img_show)
         c = cv2.waitKey(5)

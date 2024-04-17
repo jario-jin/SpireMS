@@ -3,7 +3,7 @@
 	"timestamp": 0.0,
 	"bar_chart_items": [
 		{
-			"posx": 0,
+			"posx": 10,
 			"posy": 0,
 			"title": "CPU",
 			"title_refresh": "{:.1f}%",
@@ -12,7 +12,7 @@
 			"val_max": 100 
 		},
 		{
-			"posx": 80,
+			"posx": 90,
 			"posy": 0,
 			"title": "Mem",
 			"title_refresh": "{:.1f}G",
@@ -21,7 +21,7 @@
 			"val_max": 128
 		},
 		{
-			"posx": 160,
+			"posx": 170,
 			"posy": 0,
 			"title": "Disk",
 			"title_refresh": "{:.1f}TB",
@@ -30,16 +30,16 @@
 			"val_max": 15.2
 		},
 		{
-			"posx": 240,
+			"posx": 250,
 			"posy": 0,
-			"title": "Temp",
+			"title": "CPU-Temp",
 			"title_refresh": "{:.1f}C",
 			"val": 0,
 			"val_min": 0,
 			"val_max": 100
 		},
 		{
-			"posx": 320,
+			"posx": 1040,
 			"posy": 0,
 			"title": "Water",
 			"title_refresh": "{:.1f}C",
@@ -48,7 +48,7 @@
 			"val_max": 100
 		},
 		{
-			"posx": 400,
+			"posx": 1120,
 			"posy": 0,
 			"title": "Oil",
 			"title_refresh": "{:.1f}C",
@@ -57,13 +57,22 @@
 			"val_max": 100
 		},
 		{
-			"posx": 480,
+			"posx": 1200,
 			"posy": 0,
 			"title": "RPM",
-			"title_refresh": "{}",
+			"title_refresh": "{:d}",
 			"val": 0,
 			"val_min": 0,
 			"val_max": 20000
+		},
+		{
+			"posx": 960,
+			"posy": 0,
+			"title": "Lateral-Err",
+			"title_refresh": "{:.1f}m",
+			"val": 0,
+			"val_min": 0,
+			"val_max": 10
 		}
 	]
 }

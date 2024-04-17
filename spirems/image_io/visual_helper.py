@@ -5,12 +5,15 @@ import cv2
 import os
 from PIL import ImageFont, ImageDraw, Image
 import csv
+from datetime import datetime
 
 
 font_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../res/fradmcn.ttf')
+font_path_big = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../res/msyh_boot.ttf')
 font_size = 17
 font_color = (255, 255, 255)
 font = ImageFont.truetype(font_path, font_size)
+font_big = ImageFont.truetype(font_path_big, 60)
 
 
 def load_a2rl_logo() -> np.ndarray:
@@ -22,7 +25,7 @@ def load_a2rl_logo() -> np.ndarray:
 def draw_charts(img: np.ndarray, visual_msg: dict) -> np.ndarray:
     if len(img.shape) == 3 and img.shape[0] == 720 and img.shape[1] == 1280:
         img_show_ = img.copy()
-        show_h, show_w = 120, 899
+        show_h, show_w = 120, 1280
         menu_img = img_show_[-show_h:, :show_w]
         menu_mask = np.zeros_like(menu_img, dtype=np.uint8)
         menu_img = cv2.addWeighted(menu_img, 0.5, menu_mask, 0.5, 0)
@@ -54,8 +57,11 @@ def draw_charts(img: np.ndarray, visual_msg: dict) -> np.ndarray:
                     val = val_min
                 if val > val_max:
                     val = val_max
-                draw.text((20 + posx, 8), text.format(val), font=font, fill=font_color)
-                draw.text((20 + posx, 94), name, font=font, fill=font_color)
+                draw.text((32 + posx - len(text.format(val)) * 3, 8), text.format(val), font=font, fill=font_color)
+                draw.text((32 + posx - len(name) * 3, 94), name, font=font, fill=font_color)
+
+            time_str = datetime.now().strftime("%H:%M:%S")
+            draw.text((640 - 100, 20), time_str, font=font_big, fill=font_color)
             menu_img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
         img_show_[-show_h:, :show_w] = menu_img
         img = img_show_
@@ -164,15 +170,14 @@ def draw_track_map(
     localization: tuple,
     orientation_z: float,
     velocity: float,
-    acceleration: float,
-    local: bool = False
+    acceleration: float
 ):
     if len(img.shape) == 3 and img.shape[0] == 720 and img.shape[1] == 1280:
         img_show_ = img.copy()
         # 316, 600
-        draw_map_h = 720
-        draw_map_w = 380
-        if local:
+        draw_map_h = 599
+        draw_map_w = 316
+        if True:
             full_map_h = draw_map_h * 8
             full_map_w = draw_map_w * 8
             scale_x = full_map_w / map_size[0]
@@ -222,12 +227,12 @@ def draw_track_map(
             # print(img_map.shape)
             img_map = cv2.addWeighted(img_map, 0.5, map_mask, 0.5, 0)
             img_show_[:draw_map_h, -draw_map_w:] = img_map
-            img = img_show_
-        else:
+            # img = img_show_
+        if True:
             scale_x = draw_map_w / map_size[0]
             scale_y = draw_map_h / map_size[1]
 
-            img_map = img_show_[:draw_map_h, -draw_map_w:]
+            img_map = img_show_[:draw_map_h, :draw_map_w]
             map_mask = np.zeros_like(img_map, dtype=np.uint8)
             img_map = cv2.addWeighted(img_map, 0.5, map_mask, 0.5, 0)
 
@@ -241,7 +246,7 @@ def draw_track_map(
             loc = np.array([[pt[0] * scale_x, pt[1] * scale_y] for pt in loc], dtype=np.int32)
             for pt in loc:
                 img_map = cv2.circle(img_map, pt, 4, (0, 0, 255), -1)
-            img_show_[:draw_map_h, -draw_map_w:] = img_map
+            img_show_[:draw_map_h, :draw_map_w] = img_map
             img = img_show_
     return img
 

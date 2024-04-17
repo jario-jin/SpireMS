@@ -21,6 +21,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 def get_package_data():
     data = []
     data.append('msgs/_sys_msgs/*.json')
+    data.append('msgs/_visual_msgs/*.json')
     data.append('msgs/sensor_msgs/*.json')
     data.append('msgs/std_msgs/*.json')
     data.append('logs/*.md')

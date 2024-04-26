@@ -39,17 +39,16 @@ class Publisher(threading.Thread):
         self.transmission_delay = 0.0  # second
         self.package_loss_rate = 0.0  # 0-100 %
         self.force_quit = False
+        self.heartbeat_thread = None
+        self.heartbeat_running = False
+        self.running = True
         try:
             self._link()
         except Exception as e:
             pass
-        self.running = True
         self.suspended = False
         self.err_cnt = 0
         self.start()
-        heartbeat_thread = threading.Thread(target=self.heartbeat)
-        self.heartbeat_running = True
-        heartbeat_thread.start()
 
     def kill(self):
         self.force_quit = True
@@ -106,9 +105,15 @@ class Publisher(threading.Thread):
                 break
 
     def _link(self):
+        self.heartbeat_running = False
+        if self.heartbeat_thread is not None:
+            self.heartbeat_thread.join()
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.settimeout(5)
         self.client_socket.connect((self.ip, self.port))
+        self.heartbeat_thread = threading.Thread(target=self.heartbeat)
+        self.heartbeat_running = True
+        self.heartbeat_thread.start()
 
     def publish(self, topic) -> bool:
         if not self.suspended and self.running:
@@ -204,9 +209,13 @@ class Publisher(threading.Thread):
                 if self.force_quit:
                     break
                 self.suspended = True
-                time.sleep(5)
+                self.heartbeat_running = False
                 try:
                     self.client_socket.close()
+                except Exception as e:
+                    logger.error(e)
+                time.sleep(5)
+                try:
                     self._link()
                     self.running = True
                     self.suspended = False

@@ -170,7 +170,8 @@ def draw_track_map(
     localization: tuple,
     orientation_z: float,
     velocity: float,
-    acceleration: float
+    acceleration: float,
+    code19_info: tuple
 ):
     if len(img.shape) == 3 and img.shape[0] == 720 and img.shape[1] == 1280:
         img_show_ = img.copy()
@@ -192,7 +193,7 @@ def draw_track_map(
             loc = track_coordinate_convert(loc)
             loc = np.array([[pt[0] * scale_x, pt[1] * scale_y] for pt in loc], dtype=np.int32)
             pt = loc[0]
-            map_mask = cv2.circle(map_mask, pt, 4, (0, 0, 255), -1)
+            map_mask = cv2.circle(map_mask, pt, 4, (0, 0, 255), -1, cv2.LINE_AA)
 
             pil_image = Image.fromarray(cv2.cvtColor(map_mask, cv2.COLOR_BGR2RGB))
             draw = ImageDraw.Draw(pil_image)
@@ -244,8 +245,23 @@ def draw_track_map(
             loc = np.array([localization]).astype(np.float64)
             loc = track_coordinate_convert(loc)
             loc = np.array([[pt[0] * scale_x, pt[1] * scale_y] for pt in loc], dtype=np.int32)
-            for pt in loc:
-                img_map = cv2.circle(img_map, pt, 4, (0, 0, 255), -1)
+            ptfe = loc[0]
+            img_map = cv2.circle(img_map, ptfe, 4, (0, 0, 255), -1, cv2.LINE_AA)
+            img_map = cv2.circle(img_map, ptfe, 4, (0, 0, 0), 1, cv2.LINE_AA)
+
+            code19_loc = np.array([[code19_info[0], code19_info[1]]]).astype(np.float64)
+            code19_loc = track_coordinate_convert(code19_loc)
+            code19_loc = np.array([[pt[0] * scale_x, pt[1] * scale_y] for pt in code19_loc], dtype=np.int32)
+            pt19 = code19_loc[0]
+            img_map = cv2.circle(img_map, pt19, 4, (255, 0, 0), -1, cv2.LINE_AA)
+            img_map = cv2.circle(img_map, pt19, 4, (0, 0, 0), 1, cv2.LINE_AA)
+
+            pil_image = Image.fromarray(cv2.cvtColor(img_map, cv2.COLOR_BGR2RGB))
+            draw = ImageDraw.Draw(pil_image)
+            draw.text((ptfe[0], ptfe[1] - 30), "{:.2f} m/s".format(velocity), font=font, fill=font_color)
+            draw.text((pt19[0], pt19[1] - 30), "{:.2f} m/s".format(code19_info[2]), font=font, fill=font_color)
+            img_map = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+
             img_show_[:draw_map_h, :draw_map_w] = img_map
             img = img_show_
     return img

@@ -43,10 +43,15 @@ orientation_z = 0
 velocity = 0
 acceleration = 0
 lateral_error = 0
+code19_x = -50000
+code19_y = -50000
+code19_v = 0
+code19_yaw = 0
 
 
 def callback_ego_loc(msg):
-    global position_x, position_y, position_z, orientation_z, velocity, acceleration, lateral_error
+    global position_x, position_y, position_z, orientation_z, velocity, acceleration, lateral_error, \
+        code19_x, code19_y, code19_v, code19_yaw
     position_x = msg['data'][0]
     # print(position_x)
     position_y = msg['data'][1]
@@ -64,6 +69,10 @@ def callback_ego_loc(msg):
     ice_oil_temp = msg['data'][8]
     ice_engine_speed = msg['data'][9]
     lateral_error = msg['data'][10]
+    code19_x = msg['data'][11]
+    code19_y = msg['data'][12]
+    code19_v = msg['data'][13]
+    code19_yaw = msg['data'][14]
     a2rl_visual["bar_chart_items"][4]['val'] = ice_water_temp
     print(msg['data'])
     a2rl_visual["bar_chart_items"][5]['val'] = ice_oil_temp
@@ -95,7 +104,8 @@ if __name__ == '__main__':
             img = cv2.resize(img, (1280, 720))
         img_show = draw_charts(img, a2rl_visual)
         img_show = draw_track_map(img_show, left_line, right_line, (map_w, map_h),
-                                  (position_x, position_y), orientation_z, velocity, acceleration)
+                                  (position_x, position_y), orientation_z, velocity, acceleration,
+                                  (code19_x, code19_y, code19_v, code19_yaw))
 
         cv2.imshow('img', img_show)
         c = cv2.waitKey(5)

@@ -8,12 +8,13 @@ __pycache__/
 
 # Logs
 spirems/log.txt
-*.txt
+log_*.txt
 
 # Distribution / packaging
 .idea/
 .Python
 build/
+spirems_cpp/build/
 develop-eggs/
 dist/
 downloads/

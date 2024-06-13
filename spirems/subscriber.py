@@ -191,8 +191,12 @@ def callback_f(msg):
         print("Max-Dt: {}".format(max_dt))
 
 
+def callback_g(msg):
+    print("{} ... {}".format(time.time() - msg['data'][0], msg['data']))
+
+
 if __name__ == '__main__':
-    sub = Subscriber('/sensors/hello/a12', 'std_msgs::NumberMultiArray', callback_f,
+    sub = Subscriber('/sensors/hello/a16', 'std_msgs::NumberMultiArray', callback_g,
                      ip='127.0.0.1')
     # sub.wait_key()
 
@@ -207,4 +211,3 @@ if __name__ == '__main__':
             sub.unsuspend()
             sus = False
         time.sleep(10)
-

@@ -115,9 +115,9 @@ class Publisher(threading.Thread):
         self.heartbeat_running = True
         self.heartbeat_thread.start()
 
-    def publish(self, topic) -> bool:
+    def publish(self, topic: dict, enforce: float = 0.2) -> bool:
         if not self.suspended and self.running:
-            if time.time() - self.last_upload_time > self.transmission_delay:
+            if time.time() - self.last_upload_time > (self.transmission_delay + 1e-8) / (1e2 ** enforce):
                 try:
                     # print("avg_delay: {}".format(self.transmission_delay))
                     topic = topic.copy()
@@ -125,6 +125,8 @@ class Publisher(threading.Thread):
                     topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
                     topic_upload['topic'] = topic
                     self.upload_id += 1
+                    if self.upload_id > 1e6:
+                        self.upload_id = 1
                     topic_upload['id'] = self.upload_id
                     self.uploaded_ids[self.upload_id] = [time.time(), -1]  # Now, Delay
                     self.client_socket.sendall(encode_msg(topic_upload))
@@ -134,7 +136,8 @@ class Publisher(threading.Thread):
                 except socket.timeout:
                     pass
             else:
-                logger.warn("There is a large network delay ({}), suspend sending once.".format(self.transmission_delay))
+                pass
+                # logger.warn("There is a large network delay ({}), suspend sending once.".format(self.transmission_delay))
         return False
 
     def _parse_msg(self, msg):
@@ -235,7 +238,9 @@ if __name__ == '__main__':
     while True:
         time.sleep(0.1)
         tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
-        tpc['data'] = [random.random() for i in range(20000)]
+        data = [time.time(), cnt]
+        data.extend(random.random() for i in range(20))
+        tpc['data'] = data
         # print(len(encode_msg(tpc)) / 1024 / 1024)
         # if cnt == 0:
         #     tpc['type'] = 'std_msgs::Number'

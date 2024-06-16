@@ -169,7 +169,7 @@ class Publisher(threading.Thread):
             if self.force_quit:
                 break
             try:
-                data = self.client_socket.recv(4096)
+                data = self.client_socket.recv(65536)  # 4096
                 if not data:
                     raise TimeoutError('No data arrived.')
                 # print('data: {}'.format(data))

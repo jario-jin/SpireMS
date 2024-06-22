@@ -7,12 +7,12 @@ import time
 
 
 def callback_f(msg):
-    print(time.time() - msg['timestamp'])
+    print(msg['data'])
 
 
 sub = Subscriber(
     '/talker/hello_spirems',
-    'std_msgs::NumberMultiArray', callback_f,
+    'std_msgs::String', callback_f,
     # ip='47.91.115.171'
 )
 sub.wait_key()

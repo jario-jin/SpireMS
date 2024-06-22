@@ -1,0 +1,8 @@
+{
+	"type": "wedet_msgs::DetResult",
+	"timestamp": 0.0,
+	"file_name": "",
+	"height": 0,
+	"width": 0,
+	"annos": []
+}

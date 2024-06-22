@@ -25,9 +25,9 @@ if __name__ == '__main__':
     pub = Publisher('/sensors/camera/image_raw', 'sensor_msgs::Image')
     while True:
         img = load_a2rl_logo()
-        img = cv2.resize(img, (1333, 800))
+        img = cv2.resize(img, (1920, 1200))
         sms = cvimg2sms(img, encoding='uint8')
         pub.publish(sms)
-        time.sleep(0.03)
+        time.sleep(0.1)
 
     sub.wait_key()

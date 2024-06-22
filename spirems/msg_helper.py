@@ -78,7 +78,7 @@ def check_msg(data: bytes) -> (list, list, list):
                 else:
                     msg_len = 0
                     break
-            if 8 < msg_len < 1024 * 1024 * 5:  # 5Mb
+            if 8 < msg_len < 1024 * 1024 * 50:  # 50Mb
                 parted_msg = data
                 parted_len = msg_len
                 parted_msgs.append(parted_msg)

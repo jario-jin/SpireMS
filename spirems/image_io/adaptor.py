@@ -27,18 +27,18 @@ def cvimg2sms(img: np.ndarray, encoding='jpeg') -> dict:
     elif sms['encoding'] == 'uint8':
         img_encoded = img.tobytes()
 
-    t1 = time.time()
+    # t1 = time.time()
     img_base64 = base64.b64encode(img_encoded).decode('utf-8')
-    print("-- b64encode: {}".format(time.time() - t1))
+    # print("-- b64encode: {}".format(time.time() - t1))
     sms['data'] = img_base64
 
     return sms
 
 
 def sms2cvimg(sms: dict) -> np.ndarray:
-    t1 = time.time()
+    # t1 = time.time()
     img_base64 = base64.b64decode(sms['data'])
-    print("== b64decode: {}".format(time.time() - t1))
+    # print("== b64decode: {}".format(time.time() - t1))
 
     if sms['encoding'] in ['jpeg', 'jpg', 'png']:
         img_encoded = np.frombuffer(img_base64, dtype='uint8')

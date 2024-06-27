@@ -77,20 +77,20 @@ def remove_subscriber(client_key: str):
 def update_topic(topic_url: str, topic_type: str, client_key: str):
     topic_list = get_public_topic()
     if client_key not in topic_list['from_key']:
+        topic_list['from_key'][client_key] = {
+            'url': topic_url,
+            'type': topic_type,
+            'key': client_key
+        }
         if topic_url in topic_list['from_topic']:
-            pass
+            topic_list['from_topic'][topic_url]['key'].append(client_key)
         else:
-            topic_list['from_key'][client_key] = {
-                'url': topic_url,
-                'type': topic_type,
-                'key': client_key
-            }
             topic_list['from_topic'][topic_url] = {
                 'url': topic_url,
                 'type': topic_type,
-                'key': client_key
+                'key': [client_key]
             }
-            sync_topic_subscriber()
+        sync_topic_subscriber()
 
 
 def update_subscriber(topic_url: str, topic_type: str, client_key: str):
@@ -106,8 +106,10 @@ def update_subscriber(topic_url: str, topic_type: str, client_key: str):
 
 def check_publish_url_type(topic_url: str, topic_type: str, client_key: str) -> int:
     error = check_topic_url(topic_url)
+    """
     if client_key not in get_public_topic()['from_key'] and topic_url in get_public_topic()['from_topic']:
         error = 204  # As the same as the existing
+    """
     if topic_type not in get_all_msg_types():
         error = 205  # Unsupported topic type
     return error
@@ -135,6 +137,8 @@ class Pipeline(threading.Thread):
         self._server = _server
         self.running = True
         self.pub_type = None
+        self.pub_enforce = True
+        self._pub_lock = threading.Lock()
         self.sub_type = None
         self.sub_url = None
         self._quit = False
@@ -202,13 +206,16 @@ class Pipeline(threading.Thread):
 
     def sub_forwarding_topic(self, topic: dict):
         # print(self.transmission_delay)
-        if not self.sub_suspended and time.time() - self.last_upload_time > self.transmission_delay:
+        if not self.sub_suspended and (time.time() - self.last_upload_time > self.transmission_delay * 0.3
+                                       or self.pub_enforce):
             self.pass_id += 1
             passed_msg = get_all_msg_types()['_sys_msgs::TopicDown'].copy()
             passed_msg['id'] = self.pass_id
             passed_msg['topic'] = topic
             self.passed_ids[self.pass_id] = [time.time(), -1]  # Now, Delay
+            self._pub_lock.acquire()
             self.client_socket.sendall(encode_msg(passed_msg))
+            self._pub_lock.release()
             self.last_send_time = time.time()
             self.last_upload_time = time.time()
 
@@ -241,6 +248,7 @@ class Pipeline(threading.Thread):
                         error = 209
                     if error == 0:
                         self.pub_type = msg['topic_type']
+                        self.pub_enforce = msg['enforce']
                         update_topic(msg['url'], msg['topic_type'], self.client_key)
                     else:
                         response = ec2msg(error)

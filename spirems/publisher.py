@@ -42,6 +42,7 @@ class Publisher(threading.Thread):
         self.heartbeat_thread = None
         self.heartbeat_running = False
         self.running = True
+        self.enforce_publish = False
         try:
             self._link()
         except Exception as e:
@@ -93,6 +94,7 @@ class Publisher(threading.Thread):
                 apply_topic = all_types['_sys_msgs::Publisher'].copy()
                 apply_topic['topic_type'] = self.topic_type
                 apply_topic['url'] = self.topic_url
+                apply_topic['enforce'] = self.enforce_publish
                 if time.time() - self.last_send_time >= 1.0:
                     self.client_socket.sendall(encode_msg(apply_topic))
                     self.last_send_time = time.time()
@@ -108,6 +110,7 @@ class Publisher(threading.Thread):
         self.heartbeat_running = False
         if self.heartbeat_thread is not None:
             self.heartbeat_thread.join()
+
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.settimeout(5)
         self.client_socket.connect((self.ip, self.port))
@@ -115,9 +118,10 @@ class Publisher(threading.Thread):
         self.heartbeat_running = True
         self.heartbeat_thread.start()
 
-    def publish(self, topic: dict, enforce: float = 0.2) -> bool:
+    def publish(self, topic: dict, enforce: bool = False) -> bool:
         if not self.suspended and self.running:
-            if time.time() - self.last_upload_time > (self.transmission_delay + 1e-8) / (1e2 ** enforce):
+            self.enforce_publish = enforce
+            if time.time() - self.last_upload_time > self.transmission_delay * 0.3 or enforce:
                 try:
                     # print("avg_delay: {}".format(self.transmission_delay))
                     topic = topic.copy()
@@ -231,18 +235,24 @@ class Publisher(threading.Thread):
 
 
 if __name__ == '__main__':
-    pub = Publisher('/sensors/hello/a12', 'std_msgs::NumberMultiArray',
+    pub1 = Publisher('/sensors/hello/a12', 'std_msgs::NumberMultiArray',
+                    ip='127.0.0.1')
+    time.sleep(0.1)
+    pub2 = Publisher('/sensors/hello/a12', 'std_msgs::NumberMultiArray',
                     ip='127.0.0.1')
     # pub = Publisher('/hello1', 'std_msgs::NumberMultiArray')
     cnt = 0
     while True:
         time.sleep(0.1)
         tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
-        data = [time.time(), cnt]
-        data.extend(random.random() for i in range(20))
+        data = [123]
+        # data.extend(random.random() for i in range(20))
         tpc['data'] = data
         # print(len(encode_msg(tpc)) / 1024 / 1024)
         # if cnt == 0:
         #     tpc['type'] = 'std_msgs::Number'
-        pub.publish(tpc)
+        pub1.publish(tpc, True)
+        tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
+        tpc['data'] = [456]
+        pub2.publish(tpc, True)
         cnt += 1

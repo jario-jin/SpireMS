@@ -294,8 +294,10 @@ class Pipeline(threading.Thread):
             elif '_sys_msgs::SmsTopicList' == msg['type']:
                 response['error_code'] = 0
                 url_types = []
+                TOPIC_LIST_LOCK.acquire()
                 for key, val in get_public_topic()['from_topic'].items():
                     url_types.append(key + "," + val['type'] + "," + str(len(val['subs'])))
+                TOPIC_LIST_LOCK.release()
                 response['data'] = ";".join(url_types)
             elif '_sys_msgs::TopicUpload' == msg['type']:
                 response['id'] = msg['id']

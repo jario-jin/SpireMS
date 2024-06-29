@@ -36,6 +36,7 @@ class Publisher(threading.Thread):
         self.last_send_time = 0.0
         self.last_upload_time = 0.0
         self.uploaded_ids = dict()  # already uploaded IDs
+        self._ids_lock = threading.Lock()
         self.transmission_delay = 0.0  # second
         self.package_loss_rate = 0.0  # 0-100 %
         self.force_quit = False
@@ -69,6 +70,8 @@ class Publisher(threading.Thread):
         package_loss_rate = 0.0
         package_len = len(self.uploaded_ids)
         invalid_keys = []
+
+        self._ids_lock.acquire()
         for key, val in self.uploaded_ids.items():
             if val[1] >= 0:
                 delay += val[1]
@@ -79,6 +82,7 @@ class Publisher(threading.Thread):
 
         for key in invalid_keys:
             del self.uploaded_ids[key]
+        self._ids_lock.release()
 
         if delay_cnt > 0:
             delay = delay / delay_cnt
@@ -132,7 +136,9 @@ class Publisher(threading.Thread):
                     if self.upload_id > 1e6:
                         self.upload_id = 1
                     topic_upload['id'] = self.upload_id
+                    self._ids_lock.acquire()
                     self.uploaded_ids[self.upload_id] = [time.time(), -1]  # Now, Delay
+                    self._ids_lock.release()
                     self.client_socket.sendall(encode_msg(topic_upload))
                     self.last_send_time = time.time()
                     self.last_upload_time = time.time()
@@ -155,8 +161,10 @@ class Publisher(threading.Thread):
                 self.err_cnt = 0
                 recv_id = decode_data['id']
                 # print(decode_data['id'])
+                self._ids_lock.acquire()
                 if recv_id in self.uploaded_ids:
                     self.uploaded_ids[recv_id][1] = time.time() - self.uploaded_ids[recv_id][0]
+                self._ids_lock.release()
             if decode_data['error_code'] > 0:
                 self.err_cnt += 1
                 if self.err_cnt > 5:
@@ -215,17 +223,21 @@ class Publisher(threading.Thread):
             while not self.running:
                 if self.force_quit:
                     break
+                logger.info('(1) running=False, suspended=True, heartbeat_running=False')
                 self.suspended = True
                 self.heartbeat_running = False
                 try:
                     self.client_socket.close()
+                    logger.info('(2) client_socket closed')
                 except Exception as e:
                     logger.error(e)
                 time.sleep(5)
+                logger.info('(3) start re-linking ...')
                 try:
                     self._link()
                     self.running = True
                     self.suspended = False
+                    logger.info('(4) running=True, suspended=False')
                 except Exception as e:
                     logger.error(e)
                 logger.info('Running={}, Wait ...'.format(self.running))

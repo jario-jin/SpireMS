@@ -16,9 +16,11 @@ def get_logger(name: str = "default"):
         current_time = datetime.now()
         formatted_time = current_time.strftime("log_%Y_%m_%d.txt")
         f_handler = logging.FileHandler(os.path.join(log_dir, formatted_time))
+        f_handler.encoding = 'utf-8'
         f_handler.setFormatter(formatter)
         formatter = logging.Formatter('[%(levelname)s] [%(name)s] %(message)s')
         s_handler = logging.StreamHandler()
+        s_handler.encoding = 'utf-8'
         s_handler.setFormatter(formatter)
         logger.setLevel(level=logging.DEBUG)
         logger.addHandler(s_handler)

@@ -146,6 +146,7 @@ class Pipeline(threading.Thread):
         self.sub_suspended = False
         self.pass_id = 0
         self.passed_ids = dict()  # already passed IDs
+        self._ids_lock = threading.Lock()
         self.last_send_time = time.time()
         self.last_upload_time = 0.0
         self.transmission_delay = 0.0  # second
@@ -159,6 +160,8 @@ class Pipeline(threading.Thread):
         package_loss_rate = 0.0
         package_len = len(self.passed_ids)
         invalid_keys = []
+
+        self._ids_lock.acquire()
         for key, val in self.passed_ids.items():
             if val[1] >= 0:
                 delay += val[1]
@@ -169,6 +172,7 @@ class Pipeline(threading.Thread):
 
         for key in invalid_keys:
             del self.passed_ids[key]
+        self._ids_lock.release()
 
         if delay_cnt > 0:
             delay = delay / delay_cnt
@@ -212,7 +216,9 @@ class Pipeline(threading.Thread):
             passed_msg = get_all_msg_types()['_sys_msgs::TopicDown'].copy()
             passed_msg['id'] = self.pass_id
             passed_msg['topic'] = topic
+            self._ids_lock.acquire()
             self.passed_ids[self.pass_id] = [time.time(), -1]  # Now, Delay
+            self._ids_lock.release()
             self._pub_lock.acquire()
             self.client_socket.sendall(encode_msg(passed_msg))
             self._pub_lock.release()
@@ -294,7 +300,9 @@ class Pipeline(threading.Thread):
             elif '_sys_msgs::Result' == msg['type']:
                 if self.sub_type is not None and msg['id'] in self.passed_ids:
                     recv_id = msg['id']
+                    self._ids_lock.acquire()
                     self.passed_ids[recv_id][1] = time.time() - self.passed_ids[recv_id][0]
+                    self._ids_lock.release()
                 no_reply = True
             else:
                 no_reply = True

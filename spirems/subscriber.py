@@ -163,15 +163,19 @@ class Subscriber(threading.Thread):
             while not self.running:
                 if self.force_quit:
                     break
+                logger.info('(1) running=False, heartbeat_running=False')
                 self.heartbeat_running = False
                 try:
                     self.client_socket.close()
+                    logger.info('(2) client_socket closed')
                 except Exception as e:
                     logger.error(e)
                 time.sleep(5)
+                logger.info('(3) start re-linking ...')
                 try:
                     self._link()
                     self.running = True
+                    logger.info('(4) running=True, suspended=False')
                 except Exception as e:
                     logger.error(e)
                 logger.info('Running={}, Wait ...'.format(self.running))

@@ -127,7 +127,7 @@ class Publisher(threading.Thread):
             self.enforce_publish = enforce
             if time.time() - self.last_upload_time > self.transmission_delay * 0.3 or enforce:
                 try:
-                    # print("avg_delay: {}".format(self.transmission_delay))
+                    # logger.info("avg_delay: {}".format(self.transmission_delay))
                     topic = topic.copy()
                     topic['timestamp'] = time.time()
                     topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
@@ -143,7 +143,7 @@ class Publisher(threading.Thread):
                     self.last_send_time = time.time()
                     self.last_upload_time = time.time()
                     return True
-                except socket.timeout:
+                except:
                     pass
             else:
                 pass

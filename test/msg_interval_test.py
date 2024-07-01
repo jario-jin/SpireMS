@@ -8,6 +8,7 @@ import time
 import concurrent.futures
 
 
+vid_dir = r"D:\001.mkv"
 max_dt = 0
 t1 = 0
 n_timer_msgs = 0
@@ -63,12 +64,16 @@ def timer_callback():
 
 def img_callback():
     pub = Publisher('/testcase/image', 'sensor_msgs::Image')
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(vid_dir)
     while True:
-        time.sleep(0.05)
-        _, frame = cap.read()
-        tpc = cvimg2sms(frame)
-        pub.publish(tpc)
+        time.sleep(0.02)
+        ret, frame = cap.read()
+        if ret:
+            frame = cv2.resize(frame, (0, 0), None, 0.5, 0.5)
+            tpc = cvimg2sms(frame)
+            pub.publish(tpc)
+        else:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
 
 sub1 = Subscriber('/testcase/num_arr', 'std_msgs::NumberMultiArray', callback_f)

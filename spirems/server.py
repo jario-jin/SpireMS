@@ -14,7 +14,6 @@ from spirems.error_code import ec2msg
 
 logger = get_logger('Server')
 TOPIC_LIST = None
-TOPIC_LIST_LOCK = threading.Lock()
 
 
 def get_public_topic() -> dict:
@@ -60,27 +59,22 @@ def sync_topic_subscriber():
 
 
 def remove_topic(client_key: str):
-    TOPIC_LIST_LOCK.acquire()
     topic_list = get_public_topic()
     if client_key in topic_list['from_key']:
         url = topic_list['from_key'][client_key]['url']
         del topic_list['from_topic'][url]
         del topic_list['from_key'][client_key]
         sync_topic_subscriber()
-    TOPIC_LIST_LOCK.release()
 
 
 def remove_subscriber(client_key: str):
-    TOPIC_LIST_LOCK.acquire()
     topic_list = get_public_topic()
     if client_key in topic_list['from_subscriber']:
         del topic_list['from_subscriber'][client_key]
         sync_topic_subscriber()
-    TOPIC_LIST_LOCK.release()
 
 
 def update_topic(topic_url: str, topic_type: str, client_key: str):
-    TOPIC_LIST_LOCK.acquire()
     topic_list = get_public_topic()
     if client_key not in topic_list['from_key']:
         topic_list['from_key'][client_key] = {
@@ -97,11 +91,9 @@ def update_topic(topic_url: str, topic_type: str, client_key: str):
                 'key': [client_key]
             }
         sync_topic_subscriber()
-    TOPIC_LIST_LOCK.release()
 
 
 def update_subscriber(topic_url: str, topic_type: str, client_key: str):
-    TOPIC_LIST_LOCK.acquire()
     topic_list = get_public_topic()
     if client_key not in topic_list['from_subscriber']:
         topic_list['from_subscriber'][client_key] = {
@@ -110,7 +102,6 @@ def update_subscriber(topic_url: str, topic_type: str, client_key: str):
             'key': client_key
         }
         sync_topic_subscriber()
-    TOPIC_LIST_LOCK.release()
 
 
 def check_publish_url_type(topic_url: str, topic_type: str, client_key: str) -> int:
@@ -294,10 +285,8 @@ class Pipeline(threading.Thread):
             elif '_sys_msgs::SmsTopicList' == msg['type']:
                 response['error_code'] = 0
                 url_types = []
-                TOPIC_LIST_LOCK.acquire()
                 for key, val in get_public_topic()['from_topic'].items():
                     url_types.append(key + "," + val['type'] + "," + str(len(val['subs'])))
-                TOPIC_LIST_LOCK.release()
                 response['data'] = ";".join(url_types)
             elif '_sys_msgs::TopicUpload' == msg['type']:
                 response['id'] = msg['id']

@@ -122,6 +122,9 @@ class Publisher(threading.Thread):
         self.heartbeat_running = True
         self.heartbeat_thread.start()
 
+    def idle_time(self):
+        return time.time() - self.last_upload_time
+
     def publish(self, topic: dict, enforce: bool = False) -> bool:
         if not self.suspended and self.running:
             self.enforce_publish = enforce

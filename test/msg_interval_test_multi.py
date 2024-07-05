@@ -7,9 +7,9 @@ import threading
 import time
 import concurrent.futures
 from spirems.log import get_logger
-logger = get_logger('TestCaseMsgInterval')
+logger = get_logger('TestCaseMsgIntervalMulti')
 
-vid_dir = r"F:\003.mkv"
+vid_dir = r"D:\001.mkv"
 max_dt = 0
 t1 = 0
 max_dt_img = 0
@@ -62,8 +62,8 @@ def callback_g(msg):
     t2 = time.time()
 
     cvimg = sms2cvimg(msg)
-    # cv2.imshow("cvimg", cvimg)
-    # cv2.waitKey(5)
+    cv2.imshow("cvimg", cvimg)
+    cv2.waitKey(5)
 
 
 def callback_h(msg):
@@ -83,8 +83,8 @@ def callback_h(msg):
     t3 = time.time()
 
     cvimg = sms2cvimg(msg)
-    # cv2.imshow("camera", cvimg)
-    # cv2.waitKey(5)
+    cv2.imshow("camera", cvimg)
+    cv2.waitKey(5)
 
 
 def timer_callback():
@@ -133,6 +133,3 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
     executor.submit(timer_callback)
     executor.submit(img_callback)
     executor.submit(cam_callback)
-
-
-

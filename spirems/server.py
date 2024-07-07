@@ -151,8 +151,8 @@ class Pipeline(threading.Thread):
         self.last_upload_time = 0.0
         self.transmission_delay = 0.0  # second
         self.package_loss_rate = 0.0  # 0-100 %
-        heartbeat_thread = threading.Thread(target=self.heartbeat)
-        heartbeat_thread.start()
+        self.heartbeat_thread = threading.Thread(target=self.heartbeat)
+        self.heartbeat_thread.start()
 
     def _delay_packet_loss_rate(self):
         delay = 0.0
@@ -170,6 +170,7 @@ class Pipeline(threading.Thread):
                     invalid_keys.append(key)
                     package_loss_rate += 1
 
+        with self._ids_lock:
             for key in invalid_keys:
                 del self.passed_ids[key]
 
@@ -199,7 +200,7 @@ class Pipeline(threading.Thread):
                     self._delay_packet_loss_rate()
                 time.sleep(1)
             except Exception as e:
-                logger.error("heartbeat: {}".format(e))
+                logger.error("Pipeline->heartbeat: {}".format(e))
                 self.running = False
 
             if not self.running and not self._quit:
@@ -237,7 +238,7 @@ class Pipeline(threading.Thread):
             try:
                 self._server.msg_forwarding(sub, topic)
             except Exception as e:
-                logger.debug('ForwardException: {}'.format(e))
+                logger.debug('Pipeline->_pub_forwarding_topic: {}'.format(e))
 
     def _parse_msg(self, data: bytes):
         response = get_all_msg_types()['_sys_msgs::Result'].copy()
@@ -295,9 +296,9 @@ class Pipeline(threading.Thread):
                 else:
                     response = ec2msg(208)
             elif '_sys_msgs::Result' == msg['type']:
-                if self.sub_type is not None and msg['id'] in self.passed_ids:
-                    recv_id = msg['id']
-                    with self._ids_lock:
+                with self._ids_lock:
+                    if self.sub_type is not None and msg['id'] in self.passed_ids:
+                        recv_id = msg['id']
                         self.passed_ids[recv_id][1] = time.time() - self.passed_ids[recv_id][0]
                 no_reply = True
             else:
@@ -322,12 +323,12 @@ class Pipeline(threading.Thread):
                     raise TimeoutError('No data arrived.')
                 # print(data)
             except TimeoutError as e:
-                logger.error("pipline recv: {}".format(e))
+                logger.error("Pipeline->run->recv(1): {}".format(e))
                 # print(time.time() - tt1)
                 self.running = False
                 break
             except Exception as e:
-                logger.error("pipline recv: {}".format(e))
+                logger.error("Pipeline->run->recv(2): {}".format(e))
                 self.running = False
 
             try:
@@ -352,7 +353,7 @@ class Pipeline(threading.Thread):
                         self._parse_msg(msg)
 
             except Exception as e:
-                logger.error("pipline parse: {}".format(e))
+                logger.error("Pipeline->run->parse: {}".format(e))
                 self.running = False
 
         if not self.running and not self._quit:
@@ -378,9 +379,9 @@ class Server(threading.Thread):
 
     def listen(self):
         self.socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket_server.settimeout(5)
+        # self.socket_server.settimeout(5)
         self.socket_server.bind(('', self.port))
-        self.socket_server.listen(512)
+        self.socket_server.listen(4096)
         logger.info('Start listening on port {} ...'.format(self.port))
         self.listening = True
         self.start()
@@ -398,26 +399,27 @@ class Server(threading.Thread):
                 pipeline = Pipeline(client_key, client_socket, self)
                 self.connected_clients[client_key] = pipeline
                 pipeline.start()
-            except socket.timeout:
-                pass
+            except Exception as e:
+                logger.error("Server->run: {}".format(e))
 
     def msg_forwarding(self, client_key: str, topic: dict):
         if client_key in self.connected_clients:
             self.connected_clients[client_key].sub_forwarding_topic(topic)
 
     def quit(self, client_key=None):
-        if client_key is None:
-            for k, c in self.connected_clients.items():
-                c.quit()
-            self.listening = False
-        else:
-            try:
+        try:
+            if client_key is None:
+                for k, c in self.connected_clients.items():
+                    c.quit()
+                self.listening = False
+            else:
                 remove_topic(client_key)
                 # show_topic_list()
                 self.connected_clients[client_key].quit()
                 del self.connected_clients[client_key]
-            except Exception as e:
-                pass
+        except Exception as e:
+            logger.error("Server->quit: {}".format(e))
+
         logger.info("Now clients remain: {}, {}".format(
             len(self.connected_clients),
             list(self.connected_clients.keys())

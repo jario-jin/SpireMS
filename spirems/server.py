@@ -196,8 +196,8 @@ class Pipeline(threading.Thread):
 
     def heartbeat(self):
         while self.running:
-            hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
             try:
+                hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
                 if time.time() - self.last_send_time >= 1.0:
                     with self._send_lock:
                         self.client_socket.sendall(encode_msg(hb_msg))
@@ -213,7 +213,6 @@ class Pipeline(threading.Thread):
                         self.pub_suspended = False
                 if self.sub_type is not None:  # catch delay issue
                     self._delay_packet_loss_rate()
-                time.sleep(1)
             except Exception as e:
                 logger.error("(ID: {}, P: {}, S: {}) Pipeline->heartbeat: {}".format(
                     self.client_key, self.pub_type, self.sub_url, e))
@@ -224,12 +223,15 @@ class Pipeline(threading.Thread):
                 self.quit()
                 self._server.quit(self.client_key)
 
+            time.sleep(1)
+
     def sub_forwarding(self):
         while self.running:
             while not self.sub_forwarding_queue.empty():
-                with self._queue_lock:
-                    topic = self.sub_forwarding_queue.get()
                 try:
+                    with self._queue_lock:
+                        topic = self.sub_forwarding_queue.get()
+
                     if not self.sub_suspended and (
                             time.time() - self.last_upload_time > self.transmission_delay * 0.3 or self.pub_enforce):
                         self.pass_id += 1
@@ -246,11 +248,13 @@ class Pipeline(threading.Thread):
                     logger.error("(ID: {}, P: {}, S: {}) Pipeline->sub_forwarding: {}".format(
                         self.client_key, self.pub_type, self.sub_url, e))
                     self.running = False
+                    break
 
-                if not self.running and not self._quit:
-                    logger.info('Quit by sub_forwarding')
-                    self.quit()
-                    self._server.quit(self.client_key)
+            if not self.running and not self._quit:
+                logger.info('Quit by sub_forwarding')
+                self.quit()
+                self._server.quit(self.client_key)
+
             time.sleep(0.002)
 
     def sub_forwarding_topic(self, topic: dict):
@@ -272,11 +276,7 @@ class Pipeline(threading.Thread):
         # enc_msg = encode_msg(topic)
         # print(topic)
         for sub in all_topics['from_topic'][url]['subs']:
-            try:
-                self._server.msg_forwarding(sub, topic)
-            except Exception as e:
-                logger.error('(ID: {}, P: {}, S: {}) Pipeline->_pub_forwarding_topic: {}'.format(
-                    self.client_key, self.pub_type, self.sub_url, e))
+            self._server.msg_forwarding(sub, topic)
 
     def _parse_msg(self, data: bytes):
         response = get_all_msg_types()['_sys_msgs::Result'].copy()
@@ -371,6 +371,7 @@ class Pipeline(threading.Thread):
                 logger.error("(ID: {}, P: {}, S: {}) Pipeline->run->recv(2): {}".format(
                     self.client_key, self.pub_type, self.sub_url, e))
                 self.running = False
+                break
 
             try:
                 recv_msgs = []
@@ -405,10 +406,14 @@ class Pipeline(threading.Thread):
 
     def quit(self):
         if not self._quit:
-            if self.sub_type is not None:
-                remove_subscriber(self.client_key)
-            self.client_socket.close()
-            self._quit = True
+            try:
+                if self.sub_type is not None:
+                    remove_subscriber(self.client_key)
+                self.client_socket.close()
+                self._quit = True
+            except Exception as e:
+                logger.error("(ID: {}, P: {}, S: {}) Pipeline->quit: {}".format(
+                    self.client_key, self.pub_type, self.sub_url, e))
 
 
 class Server(threading.Thread):
@@ -446,11 +451,8 @@ class Server(threading.Thread):
                 logger.error("Server->run: {}".format(e))
 
     def msg_forwarding(self, client_key: str, topic: dict):
-        try:
-            if client_key in self.connected_clients:
-                self.connected_clients[client_key].sub_forwarding_topic(topic)
-        except Exception as e:
-            logger.error("Server->msg_forwarding: {}".format(e))
+        if client_key in self.connected_clients:
+            self.connected_clients[client_key].sub_forwarding_topic(topic)
 
     def quit(self, client_key=None):
         try:

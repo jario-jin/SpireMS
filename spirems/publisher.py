@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
+
 import logging
 import random
 import socket
@@ -47,7 +50,7 @@ class Publisher(threading.Thread):
         try:
             self._link()
         except Exception as e:
-            pass
+            logger.warning("({}) __init__: {}".format(self.topic_url, e))
         self.suspended = False
         self.err_cnt = 0
         self.start()
@@ -105,7 +108,7 @@ class Publisher(threading.Thread):
 
                 self._delay_packet_loss_rate()
             except Exception as e:
-                logger.error("heartbeat: {}".format(e))
+                logger.warning("({}) heartbeat: {}".format(self.topic_url, e))
             time.sleep(1)
             if self.force_quit:
                 break
@@ -189,12 +192,12 @@ class Publisher(threading.Thread):
                     raise TimeoutError('No data arrived.')
                 # print('data: {}'.format(data))
             except TimeoutError as e:
-                logger.error("publisher recv: {}".format(e))
+                logger.warning("({}) recv(1): {}".format(self.topic_url, e))
                 # print(time.time() - tt1)
                 self.running = False
                 data = b''
             except Exception as e:
-                logger.error("publisher recv: {}".format(e))
+                logger.warning("({}) recv(2): {}".format(self.topic_url, e))
                 self.running = False
                 data = b''
 
@@ -220,29 +223,29 @@ class Publisher(threading.Thread):
                         self._parse_msg(msg)
 
             except Exception as e:
-                logger.error(e)
+                logger.warning("({}) parse: {}".format(self.topic_url, e))
                 self.running = False
 
             while not self.running:
                 if self.force_quit:
                     break
-                logger.info('(1) running=False, suspended=True, heartbeat_running=False')
+                # logger.info('(1) running=False, suspended=True, heartbeat_running=False')
                 self.suspended = True
                 self.heartbeat_running = False
                 try:
                     self.client_socket.close()
-                    logger.info('(2) client_socket closed')
+                    # logger.info('(2) client_socket closed')
                 except Exception as e:
-                    logger.error(e)
+                    logger.warning("({}) socket_close: {}".format(self.topic_url, e))
                 time.sleep(5)
-                logger.info('(3) start re-linking ...')
+                # logger.info('(3) start re-linking ...')
                 try:
                     self._link()
                     self.running = True
                     self.suspended = False
-                    logger.info('(4) running=True, suspended=False')
+                    # logger.info('(4) running=True, suspended=False')
                 except Exception as e:
-                    logger.error(e)
+                    logger.warning("({}) relink: {}".format(self.topic_url, e))
                 logger.info('Running={}, Wait ...'.format(self.running))
                 data = b''
                 last_data = b''

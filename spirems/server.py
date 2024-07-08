@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
 
 import threading
 import socket
@@ -200,7 +202,8 @@ class Pipeline(threading.Thread):
                     self._delay_packet_loss_rate()
                 time.sleep(1)
             except Exception as e:
-                logger.error("Pipeline->heartbeat: {}".format(e))
+                logger.error("(ID:{}, P{}, S{}) Pipeline->heartbeat: {}".format(
+                    e, self.client_key, self.pub_type, self.sub_type))
                 self.running = False
 
             if not self.running and not self._quit:
@@ -238,7 +241,8 @@ class Pipeline(threading.Thread):
             try:
                 self._server.msg_forwarding(sub, topic)
             except Exception as e:
-                logger.debug('Pipeline->_pub_forwarding_topic: {}'.format(e))
+                logger.error('(ID:{}, P{}, S{}) Pipeline->_pub_forwarding_topic: {}'.format(
+                    e, self.client_key, self.pub_type, self.sub_type))
 
     def _parse_msg(self, data: bytes):
         response = get_all_msg_types()['_sys_msgs::Result'].copy()
@@ -323,12 +327,14 @@ class Pipeline(threading.Thread):
                     raise TimeoutError('No data arrived.')
                 # print(data)
             except TimeoutError as e:
-                logger.error("Pipeline->run->recv(1): {}".format(e))
+                logger.error("(ID:{}, P{}, S{}) Pipeline->run->recv(1): {}".format(
+                    e, self.client_key, self.pub_type, self.sub_type))
                 # print(time.time() - tt1)
                 self.running = False
                 break
             except Exception as e:
-                logger.error("Pipeline->run->recv(2): {}".format(e))
+                logger.error("(ID:{}, P{}, S{}) Pipeline->run->recv(2): {}".format(
+                    e, self.client_key, self.pub_type, self.sub_type))
                 self.running = False
 
             try:
@@ -353,7 +359,8 @@ class Pipeline(threading.Thread):
                         self._parse_msg(msg)
 
             except Exception as e:
-                logger.error("Pipeline->run->parse: {}".format(e))
+                logger.error("(ID:{}, P{}, S{}) Pipeline->run->parse: {}".format(
+                    e, self.client_key, self.pub_type, self.sub_type))
                 self.running = False
 
         if not self.running and not self._quit:

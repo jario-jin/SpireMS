@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
 
 import socket
 import threading
@@ -41,7 +43,7 @@ class Subscriber(threading.Thread):
         try:
             self._link()
         except Exception as e:
-            pass
+            logger.warning("({}) __init__: {}".format(self.topic_url, e))
         self.start()
 
     def kill(self):
@@ -67,7 +69,7 @@ class Subscriber(threading.Thread):
                     self.client_socket.sendall(encode_msg(apply_topic))
                     self.last_send_time = time.time()
             except Exception as e:
-                logger.error("heartbeat: {}".format(e))
+                logger.warning("({}) heartbeat: {}".format(self.topic_url, e))
             time.sleep(1)
             if self.force_quit:
                 break
@@ -90,7 +92,7 @@ class Subscriber(threading.Thread):
                 self.client_socket.sendall(encode_msg(suspend_msg))
                 self.last_send_time = time.time()
             except Exception as e:
-                pass
+                logger.warning("({}) suspend: {}".format(self.topic_url, e))
 
     def unsuspend(self):
         if self.running and self.heartbeat_running:
@@ -99,7 +101,7 @@ class Subscriber(threading.Thread):
                 self.client_socket.sendall(encode_msg(suspend_msg))
                 self.last_send_time = time.time()
             except Exception as e:
-                pass
+                logger.warning("({}) unsuspend: {}".format(self.topic_url, e))
 
     def _parse_msg(self, msg):
         response = get_all_msg_types()['_sys_msgs::Result'].copy()
@@ -126,12 +128,12 @@ class Subscriber(threading.Thread):
                     raise TimeoutError('No data arrived.')
                 # print('data: {}'.format(data))
             except TimeoutError as e:
-                logger.error("subscriber recv: {}".format(e))
+                logger.warning("({}) recv(1): {}".format(self.topic_url, e))
                 # print(time.time() - tt1)
                 self.running = False
                 data = b''
             except Exception as e:
-                logger.error("subscriber recv: {}".format(e))
+                logger.warning("({}) recv(2): {}".format(self.topic_url, e))
                 self.running = False
                 data = b''
 
@@ -157,27 +159,27 @@ class Subscriber(threading.Thread):
                         self._parse_msg(msg)
 
             except Exception as e:
-                logger.error(e)
+                logger.warning("({}) parse: {}".format(self.topic_url, e))
                 self.running = False
 
             while not self.running:
                 if self.force_quit:
                     break
-                logger.info('(1) running=False, heartbeat_running=False')
+                # logger.info('(1) running=False, heartbeat_running=False')
                 self.heartbeat_running = False
                 try:
                     self.client_socket.close()
-                    logger.info('(2) client_socket closed')
+                    # logger.info('(2) client_socket closed')
                 except Exception as e:
-                    logger.error(e)
+                    logger.warning("({}) socket_close: {}".format(self.topic_url, e))
                 time.sleep(5)
-                logger.info('(3) start re-linking ...')
+                # logger.info('(3) start re-linking ...')
                 try:
                     self._link()
                     self.running = True
-                    logger.info('(4) running=True, suspended=False')
+                    # logger.info('(4) running=True, suspended=False')
                 except Exception as e:
-                    logger.error(e)
+                    logger.warning("({}) relink: {}".format(self.topic_url, e))
                 logger.info('Running={}, Wait ...'.format(self.running))
                 data = b''
                 last_data = b''

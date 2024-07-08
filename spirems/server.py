@@ -17,6 +17,7 @@ from spirems.error_code import ec2msg
 
 logger = get_logger('Server')
 TOPIC_LIST = None
+TOPIC_LIST_LOCK = threading.Lock()
 
 
 def get_public_topic() -> dict:
@@ -51,59 +52,64 @@ def show_topic_list():
 
 def sync_topic_subscriber():
     topic_list = get_public_topic()
-    for topic in topic_list['from_topic'].keys():
-        topic_list['from_topic'][topic]['subs'] = []
-    for client_key, client in topic_list['from_subscriber'].items():
-        if client['url'] in topic_list['from_topic']:
-            if client['type'] == topic_list['from_topic'][client['url']]['type']:
-                topic_list['from_topic'][client['url']]['subs'].append(client_key)
-            elif client['type'] == 'std_msgs::Null':
-                topic_list['from_topic'][client['url']]['subs'].append(client_key)
+    with TOPIC_LIST_LOCK:
+        for topic in topic_list['from_topic'].keys():
+            topic_list['from_topic'][topic]['subs'] = []
+        for client_key, client in topic_list['from_subscriber'].items():
+            if client['url'] in topic_list['from_topic']:
+                if client['type'] == topic_list['from_topic'][client['url']]['type']:
+                    topic_list['from_topic'][client['url']]['subs'].append(client_key)
+                elif client['type'] == 'std_msgs::Null':
+                    topic_list['from_topic'][client['url']]['subs'].append(client_key)
 
 
 def remove_topic(client_key: str):
     topic_list = get_public_topic()
     if client_key in topic_list['from_key']:
         url = topic_list['from_key'][client_key]['url']
-        del topic_list['from_topic'][url]
-        del topic_list['from_key'][client_key]
+        with TOPIC_LIST_LOCK:
+            del topic_list['from_topic'][url]
+            del topic_list['from_key'][client_key]
         sync_topic_subscriber()
 
 
 def remove_subscriber(client_key: str):
     topic_list = get_public_topic()
     if client_key in topic_list['from_subscriber']:
-        del topic_list['from_subscriber'][client_key]
+        with TOPIC_LIST_LOCK:
+            del topic_list['from_subscriber'][client_key]
         sync_topic_subscriber()
 
 
 def update_topic(topic_url: str, topic_type: str, client_key: str):
     topic_list = get_public_topic()
     if client_key not in topic_list['from_key']:
-        topic_list['from_key'][client_key] = {
-            'url': topic_url,
-            'type': topic_type,
-            'key': client_key
-        }
-        if topic_url in topic_list['from_topic']:
-            topic_list['from_topic'][topic_url]['key'].append(client_key)
-        else:
-            topic_list['from_topic'][topic_url] = {
+        with TOPIC_LIST_LOCK:
+            topic_list['from_key'][client_key] = {
                 'url': topic_url,
                 'type': topic_type,
-                'key': [client_key]
+                'key': client_key
             }
+            if topic_url in topic_list['from_topic']:
+                topic_list['from_topic'][topic_url]['key'].append(client_key)
+            else:
+                topic_list['from_topic'][topic_url] = {
+                    'url': topic_url,
+                    'type': topic_type,
+                    'key': [client_key]
+                }
         sync_topic_subscriber()
 
 
 def update_subscriber(topic_url: str, topic_type: str, client_key: str):
     topic_list = get_public_topic()
     if client_key not in topic_list['from_subscriber']:
-        topic_list['from_subscriber'][client_key] = {
-            'url': topic_url,
-            'type': topic_type,
-            'key': client_key
-        }
+        with TOPIC_LIST_LOCK:
+            topic_list['from_subscriber'][client_key] = {
+                'url': topic_url,
+                'type': topic_type,
+                'key': client_key
+            }
         sync_topic_subscriber()
 
 

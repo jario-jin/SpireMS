@@ -9,7 +9,7 @@ import concurrent.futures
 from spirems.log import get_logger
 logger = get_logger('TestCaseMsgIntervalMulti')
 
-vid_dir = r"D:\001.mkv"
+vid_dir = r"D:\dataset\001.mkv"
 max_dt = 0
 t1 = 0
 max_dt_img = 0
@@ -132,4 +132,4 @@ sub3 = Subscriber('/testcase/camera', 'sensor_msgs::Image', callback_h)
 with concurrent.futures.ThreadPoolExecutor() as executor:
     executor.submit(timer_callback)
     executor.submit(img_callback)
-    executor.submit(cam_callback)
+    # executor.submit(cam_callback)

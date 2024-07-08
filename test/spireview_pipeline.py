@@ -12,7 +12,7 @@ from spirems import Subscriber, Publisher, get_all_msg_types, cvimg2sms
 
 external_input_url = "/SpireView/CVJobInput"
 internal_input_url = "/SpireView/CVJobResultsInput"
-supported_algorithms = ["YOLOv8"]
+supported_algorithms = ["SpireDet", "YOLOv8"]
 external_ip, external_port = "127.0.0.1", 9094
 internal_ip, internal_port = "127.0.0.1", 9094
 
@@ -32,7 +32,7 @@ class SpireViewPipeline(threading.Thread):
         for alg in supported_algorithms:
             pub_url = "/SpireView/{}/CVJobInput".format(alg.replace('-', '_'))
             self.i_job_pubs[alg] = Publisher(
-                pub_url, "wedet_msgs::CVJob", ip=internal_ip, port=internal_port)
+                pub_url, "sensor_msgs::Image", ip=internal_ip, port=internal_port)
         self.e_job_pubs = dict()
         self.running = True
 
@@ -53,8 +53,10 @@ class SpireViewPipeline(threading.Thread):
                     self._j_queue_lock.acquire()
                     msg = self.job_queue.get()
                     self._j_queue_lock.release()
+                    img_msg = msg['image']
+                    img_msg['client_id'] = msg['client_id']
                     if msg['algorithm'] in supported_algorithms:
-                        self.i_job_pubs[msg['algorithm']].publish(msg, enforce=True)
+                        self.i_job_pubs[msg['algorithm']].publish(img_msg, enforce=True)
 
                 if not self.res_queue.empty():
                     self._r_queue_lock.acquire()
@@ -81,10 +83,15 @@ if __name__ == '__main__':
     pipeline = SpireViewPipeline()
     pipeline.start()
     pub1 = Publisher(external_input_url, 'wedet_msgs::CVJob')
-    img = cv2.imread(r'C:\Users\jario\Pictures\20240405034546.jpg')
+    # img = cv2.imread(r'C:\Users\jario\Pictures\MakeSuperResolutionImagezengqiang.png')
+    cap = cv2.VideoCapture(r'D:\dataset\001.mkv')
     while True:
-        time.sleep(0.1)
-        tpc = get_all_msg_types()['wedet_msgs::CVJob'].copy()
-        tpc['algorithm'] = 'YOLOv8'
-        tpc['image'] = cvimg2sms(img)
-        pub1.publish(tpc)
+        time.sleep(1)
+        ret, img = cap.read()
+        if ret:
+            tpc = get_all_msg_types()['wedet_msgs::CVJob'].copy()
+            tpc['algorithm'] = 'SpireDet'
+            tpc['image'] = cvimg2sms(img)
+            pub1.publish(tpc)
+        else:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)

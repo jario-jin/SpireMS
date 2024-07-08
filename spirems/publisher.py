@@ -40,6 +40,7 @@ class Publisher(threading.Thread):
         self.last_upload_time = 0.0
         self.uploaded_ids = dict()  # already uploaded IDs
         self._ids_lock = threading.Lock()
+        self._send_lock = threading.Lock()
         self.transmission_delay = 0.0  # second
         self.package_loss_rate = 0.0  # 0-100 %
         self.force_quit = False
@@ -74,18 +75,18 @@ class Publisher(threading.Thread):
         package_len = len(self.uploaded_ids)
         invalid_keys = []
 
-        self._ids_lock.acquire()
-        for key, val in self.uploaded_ids.items():
-            if val[1] >= 0:
-                delay += val[1]
-                delay_cnt += 1
-            if time.time() - val[0] > 5:  # keep 5 second for each msg
-                invalid_keys.append(key)
-                package_loss_rate += 1
+        with self._ids_lock:
+            for key, val in self.uploaded_ids.items():
+                if val[1] >= 0:
+                    delay += val[1]
+                    delay_cnt += 1
+                if time.time() - val[0] > 5:  # keep 5 second for each msg
+                    invalid_keys.append(key)
+                    package_loss_rate += 1
 
-        for key in invalid_keys:
-            del self.uploaded_ids[key]
-        self._ids_lock.release()
+        with self._ids_lock:
+            for key in invalid_keys:
+                del self.uploaded_ids[key]
 
         if delay_cnt > 0:
             delay = delay / delay_cnt
@@ -103,7 +104,8 @@ class Publisher(threading.Thread):
                 apply_topic['url'] = self.topic_url
                 apply_topic['enforce'] = self.enforce_publish
                 if time.time() - self.last_send_time >= 1.0:
-                    self.client_socket.sendall(encode_msg(apply_topic))
+                    with self._send_lock:
+                        self.client_socket.sendall(encode_msg(apply_topic))
                     self.last_send_time = time.time()
 
                 self._delay_packet_loss_rate()
@@ -142,10 +144,10 @@ class Publisher(threading.Thread):
                     if self.upload_id > 1e6:
                         self.upload_id = 1
                     topic_upload['id'] = self.upload_id
-                    self._ids_lock.acquire()
-                    self.uploaded_ids[self.upload_id] = [time.time(), -1]  # Now, Delay
-                    self._ids_lock.release()
-                    self.client_socket.sendall(encode_msg(topic_upload))
+                    with self._ids_lock:
+                        self.uploaded_ids[self.upload_id] = [time.time(), -1]  # Now, Delay
+                    with self._send_lock:
+                        self.client_socket.sendall(encode_msg(topic_upload))
                     self.last_send_time = time.time()
                     self.last_upload_time = time.time()
                     return True
@@ -167,10 +169,9 @@ class Publisher(threading.Thread):
                 self.err_cnt = 0
                 recv_id = decode_data['id']
                 # print(decode_data['id'])
-                self._ids_lock.acquire()
-                if recv_id in self.uploaded_ids:
-                    self.uploaded_ids[recv_id][1] = time.time() - self.uploaded_ids[recv_id][0]
-                self._ids_lock.release()
+                with self._ids_lock:
+                    if recv_id in self.uploaded_ids:
+                        self.uploaded_ids[recv_id][1] = time.time() - self.uploaded_ids[recv_id][0]
             if decode_data['error_code'] > 0:
                 self.err_cnt += 1
                 if self.err_cnt > 5:

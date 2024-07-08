@@ -8,6 +8,7 @@ import socket
 import random
 import time
 import struct
+from queue import Queue
 from spirems.log import get_logger
 from spirems.msg_helper import (get_all_msg_types, index_msg_header, decode_msg_header, decode_msg, encode_msg,
                                 check_topic_url, check_msg)
@@ -140,7 +141,6 @@ class Pipeline(threading.Thread):
         self.running = True
         self.pub_type = None
         self.pub_enforce = True
-        self._pub_lock = threading.Lock()
         self.sub_type = None
         self.sub_url = None
         self._quit = False
@@ -153,8 +153,13 @@ class Pipeline(threading.Thread):
         self.last_upload_time = 0.0
         self.transmission_delay = 0.0  # second
         self.package_loss_rate = 0.0  # 0-100 %
+        self.sub_forwarding_queue = Queue()
+        self._queue_lock = threading.Lock()
+        self._send_lock = threading.Lock()
         self.heartbeat_thread = threading.Thread(target=self.heartbeat)
         self.heartbeat_thread.start()
+        self.sub_forwarding_thread = threading.Thread(target=self.sub_forwarding)
+        self.sub_forwarding_thread.start()
 
     def _delay_packet_loss_rate(self):
         delay = 0.0
@@ -188,21 +193,24 @@ class Pipeline(threading.Thread):
             hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
             try:
                 if time.time() - self.last_send_time >= 1.0:
-                    self.client_socket.sendall(encode_msg(hb_msg))
+                    with self._send_lock:
+                        self.client_socket.sendall(encode_msg(hb_msg))
                     self.last_send_time = time.time()
                 if self.pub_type is not None:  # self.pub_suspended
                     all_topics = get_public_topic()
                     url = all_topics['from_key'][self.client_key]['url']
                     if len(all_topics['from_topic'][url]['subs']) > 0:
                         unsuspend_msg = get_all_msg_types()['_sys_msgs::Unsuspend'].copy()
-                        self.client_socket.sendall(encode_msg(unsuspend_msg))
+                        with self._send_lock:
+                            self.client_socket.sendall(encode_msg(unsuspend_msg))
                         self.last_send_time = time.time()
                         self.pub_suspended = False
                 if self.sub_type is not None:  # catch delay issue
                     self._delay_packet_loss_rate()
                 time.sleep(1)
             except Exception as e:
-                logger.error("(P: {}, S: {}) Pipeline->heartbeat: {}".format(self.pub_type, self.sub_url, e))
+                logger.error("(ID: {}, P: {}, S: {}) Pipeline->heartbeat: {}".format(
+                    self.client_key, self.pub_type, self.sub_url, e))
                 self.running = False
 
             if not self.running and not self._quit:
@@ -210,27 +218,48 @@ class Pipeline(threading.Thread):
                 self.quit()
                 self._server.quit(self.client_key)
 
+    def sub_forwarding(self):
+        while self.running:
+            while not self.sub_forwarding_queue.empty():
+                with self._queue_lock:
+                    topic = self.sub_forwarding_queue.get()
+                try:
+                    if not self.sub_suspended and (
+                            time.time() - self.last_upload_time > self.transmission_delay * 0.3 or self.pub_enforce):
+                        self.pass_id += 1
+                        passed_msg = get_all_msg_types()['_sys_msgs::TopicDown'].copy()
+                        passed_msg['id'] = self.pass_id
+                        passed_msg['topic'] = topic
+                        with self._ids_lock:
+                            self.passed_ids[self.pass_id] = [time.time(), -1]  # Now, Delay
+                        with self._send_lock:
+                            self.client_socket.sendall(encode_msg(passed_msg))
+                        self.last_send_time = time.time()
+                        self.last_upload_time = time.time()
+                except Exception as e:
+                    logger.error("(ID: {}, P: {}, S: {}) Pipeline->sub_forwarding: {}".format(
+                        self.client_key, self.pub_type, self.sub_url, e))
+                    self.running = False
+
+                if not self.running and not self._quit:
+                    logger.info('Quit by sub_forwarding')
+                    self.quit()
+                    self._server.quit(self.client_key)
+            time.sleep(0.002)
+
     def sub_forwarding_topic(self, topic: dict):
         # print(self.transmission_delay)
-        if not self.sub_suspended and (time.time() - self.last_upload_time > self.transmission_delay * 0.3
-                                       or self.pub_enforce):
-            self.pass_id += 1
-            passed_msg = get_all_msg_types()['_sys_msgs::TopicDown'].copy()
-            passed_msg['id'] = self.pass_id
-            passed_msg['topic'] = topic
-            with self._ids_lock:
-                self.passed_ids[self.pass_id] = [time.time(), -1]  # Now, Delay
-            with self._pub_lock:
-                self.client_socket.sendall(encode_msg(passed_msg))
-            self.last_send_time = time.time()
-            self.last_upload_time = time.time()
+        if self.running and not self.sub_suspended:
+            with self._queue_lock:
+                self.sub_forwarding_queue.put(topic)
 
     def _pub_forwarding_topic(self, topic: dict):
         all_topics = get_public_topic()
         url = all_topics['from_key'][self.client_key]['url']
         if len(all_topics['from_topic'][url]['subs']) == 0:
             suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
-            self.client_socket.sendall(encode_msg(suspend_msg))
+            with self._send_lock:
+                self.client_socket.sendall(encode_msg(suspend_msg))
             self.last_send_time = time.time()
             self.pub_suspended = True
 
@@ -240,7 +269,8 @@ class Pipeline(threading.Thread):
             try:
                 self._server.msg_forwarding(sub, topic)
             except Exception as e:
-                logger.error('(P: {}, S: {}) Pipeline->_pub_forwarding_topic: {}'.format(self.pub_type, self.sub_url, e))
+                logger.error('(ID: {}, P: {}, S: {}) Pipeline->_pub_forwarding_topic: {}'.format(
+                    self.client_key, self.pub_type, self.sub_url, e))
 
     def _parse_msg(self, data: bytes):
         response = get_all_msg_types()['_sys_msgs::Result'].copy()
@@ -310,7 +340,8 @@ class Pipeline(threading.Thread):
             logger.debug(data)
 
         if not no_reply:
-            self.client_socket.sendall(encode_msg(response))
+            with self._send_lock:
+                self.client_socket.sendall(encode_msg(response))
             self.last_send_time = time.time()
 
     def run(self):
@@ -325,12 +356,14 @@ class Pipeline(threading.Thread):
                     raise TimeoutError('No data arrived.')
                 # print(data)
             except TimeoutError as e:
-                logger.error("(P: {}, S: {}) Pipeline->run->recv(1): {}".format(self.pub_type, self.sub_url, e))
+                logger.error("(ID: {}, P: {}, S: {}) Pipeline->run->recv(1): {}".format(
+                    self.client_key, self.pub_type, self.sub_url, e))
                 # print(time.time() - tt1)
                 self.running = False
                 break
             except Exception as e:
-                logger.error("(P: {}, S: {}) Pipeline->run->recv(2): {}".format(self.pub_type, self.sub_url, e))
+                logger.error("(ID: {}, P: {}, S: {}) Pipeline->run->recv(2): {}".format(
+                    self.client_key, self.pub_type, self.sub_url, e))
                 self.running = False
 
             try:
@@ -355,7 +388,8 @@ class Pipeline(threading.Thread):
                         self._parse_msg(msg)
 
             except Exception as e:
-                logger.error("(P: {}, S: {}) Pipeline->run->parse: {}".format(self.pub_type, self.sub_url, e))
+                logger.error("(ID: {}, P: {}, S: {}) Pipeline->run->parse: {}".format(
+                    self.client_key, self.pub_type, self.sub_url, e))
                 self.running = False
 
         if not self.running and not self._quit:
@@ -396,17 +430,21 @@ class Server(threading.Thread):
                 client_key = random_vcode()
                 while client_key in self.connected_clients.keys():
                     client_key = random_vcode()
-                logger.info('Got client: [{}], ip: {}, port: {}'.format(client_key, client_address[0], client_address[1]))
 
                 pipeline = Pipeline(client_key, client_socket, self)
                 self.connected_clients[client_key] = pipeline
                 pipeline.start()
+                logger.info('Got client: [{}], ip: {}, port: {}, n_clients: {}'.format(
+                    client_key, client_address[0], client_address[1], len(self.connected_clients)))
             except Exception as e:
                 logger.error("Server->run: {}".format(e))
 
     def msg_forwarding(self, client_key: str, topic: dict):
-        if client_key in self.connected_clients:
-            self.connected_clients[client_key].sub_forwarding_topic(topic)
+        try:
+            if client_key in self.connected_clients:
+                self.connected_clients[client_key].sub_forwarding_topic(topic)
+        except Exception as e:
+            logger.error("Server->msg_forwarding: {}".format(e))
 
     def quit(self, client_key=None):
         try:
@@ -431,3 +469,4 @@ class Server(threading.Thread):
 if __name__ == '__main__':
     server = Server(9094)
     server.listen()
+    server.join()

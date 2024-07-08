@@ -27,6 +27,7 @@ class Subscriber(threading.Thread):
         self.topic_type = topic_type
         self.topic_url = topic_url
         self.callback_func = callback_func
+        self._send_lock = threading.Lock()
 
         all_types = get_all_msg_types()
         if topic_type not in all_types.keys():
@@ -66,7 +67,8 @@ class Subscriber(threading.Thread):
                     apply_topic = all_types['_sys_msgs::Subscriber'].copy()
                     apply_topic['topic_type'] = self.topic_type
                     apply_topic['url'] = self.topic_url
-                    self.client_socket.sendall(encode_msg(apply_topic))
+                    with self._send_lock:
+                        self.client_socket.sendall(encode_msg(apply_topic))
                     self.last_send_time = time.time()
             except Exception as e:
                 logger.warning("({}) heartbeat: {}".format(self.topic_url, e))
@@ -89,7 +91,8 @@ class Subscriber(threading.Thread):
         if self.running and self.heartbeat_running:
             try:
                 suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
-                self.client_socket.sendall(encode_msg(suspend_msg))
+                with self._send_lock:
+                    self.client_socket.sendall(encode_msg(suspend_msg))
                 self.last_send_time = time.time()
             except Exception as e:
                 logger.warning("({}) suspend: {}".format(self.topic_url, e))
@@ -98,7 +101,8 @@ class Subscriber(threading.Thread):
         if self.running and self.heartbeat_running:
             try:
                 suspend_msg = get_all_msg_types()['_sys_msgs::Unsuspend'].copy()
-                self.client_socket.sendall(encode_msg(suspend_msg))
+                with self._send_lock:
+                    self.client_socket.sendall(encode_msg(suspend_msg))
                 self.last_send_time = time.time()
             except Exception as e:
                 logger.warning("({}) unsuspend: {}".format(self.topic_url, e))
@@ -110,7 +114,8 @@ class Subscriber(threading.Thread):
             # print("{:.3f}: {}".format(time.time() - decode_data['timestamp'], decode_data))
             self.callback_func(decode_data['topic'])
             response['id'] = decode_data['id']
-            self.client_socket.sendall(encode_msg(response))
+            with self._send_lock:
+                self.client_socket.sendall(encode_msg(response))
             self.last_send_time = time.time()
         elif not success:
             logger.debug(msg)

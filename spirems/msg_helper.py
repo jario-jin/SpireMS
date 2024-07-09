@@ -55,6 +55,7 @@ def check_msg(data: bytes) -> (list, list, list):
     checked_msgs = []
     parted_msgs = []  # b''
     parted_lens = []  # 0
+    msg_len_max = 1024 * 1024 * 50  # 50Mb
     index = index_msg_header(data)
     if index >= 0:
         if index > 0:
@@ -65,7 +66,7 @@ def check_msg(data: bytes) -> (list, list, list):
         msg_len = decode_msg_header(data)
         if msg_len > 8:
             while len(data) >= msg_len:
-                if msg_len > 8:
+                if 8 < msg_len < msg_len_max:
                     checked_msgs.append(data[:msg_len])
 
                 data = data[msg_len:]
@@ -78,12 +79,12 @@ def check_msg(data: bytes) -> (list, list, list):
                 else:
                     msg_len = 0
                     break
-            if 8 < msg_len < 1024 * 1024 * 50:  # 50Mb
+            if 8 < msg_len < msg_len_max:
                 parted_msg = data
                 parted_len = msg_len
                 parted_msgs.append(parted_msg)
                 parted_lens.append(parted_len)
-    else:
+    elif len(data) > 0:
         parted_msg = data
         parted_msgs.append(parted_msg)
         parted_lens.append(0)

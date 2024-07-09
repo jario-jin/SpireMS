@@ -97,9 +97,8 @@ class Publisher(threading.Thread):
 
     def heartbeat(self):
         while self.heartbeat_running:
-            all_types = get_all_msg_types()
             try:
-                apply_topic = all_types['_sys_msgs::Publisher'].copy()
+                apply_topic = get_all_msg_types()['_sys_msgs::Publisher'].copy()
                 apply_topic['topic_type'] = self.topic_type
                 apply_topic['url'] = self.topic_url
                 apply_topic['enforce'] = self.enforce_publish
@@ -111,8 +110,10 @@ class Publisher(threading.Thread):
                 self._delay_packet_loss_rate()
             except Exception as e:
                 logger.warning("({}) heartbeat: {}".format(self.topic_url, e))
+
             time.sleep(1)
             if self.force_quit:
+                self.heartbeat_running = False
                 break
 
     def _link(self):
@@ -151,8 +152,8 @@ class Publisher(threading.Thread):
                     self.last_send_time = time.time()
                     self.last_upload_time = time.time()
                     return True
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning("({}) publish: {}".format(self.topic_url, e))
             else:
                 pass
                 # logger.warn("There is a large network delay ({}), suspend sending once.".format(self.transmission_delay))
@@ -186,6 +187,7 @@ class Publisher(threading.Thread):
         big_msg = 0
         while self.running:
             if self.force_quit:
+                self.running = False
                 break
             try:
                 data = self.client_socket.recv(65536)  # 4096

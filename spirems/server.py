@@ -414,6 +414,11 @@ class Pipeline(threading.Thread):
             except Exception as e:
                 logger.error("(ID: {}, P: {}, S: {}) Pipeline->quit: {}".format(
                     self.client_key, self.pub_type, self.sub_url, e))
+            finally:
+                self._quit = True
+
+    def is_running(self) -> bool:
+        return self.running
 
 
 class Server(threading.Thread):
@@ -423,6 +428,7 @@ class Server(threading.Thread):
         self.port = port
         self.listening = False
         self.connected_clients = dict()
+        self._clients_lock = threading.Lock()
 
     def listen(self):
         self.socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -437,13 +443,14 @@ class Server(threading.Thread):
         while self.listening:
             try:
                 client_socket, client_address = self.socket_server.accept()
-                client_socket.settimeout(5)
+                client_socket.settimeout(10)
                 client_key = random_vcode()
                 while client_key in self.connected_clients.keys():
                     client_key = random_vcode()
 
                 pipeline = Pipeline(client_key, client_socket, self)
-                self.connected_clients[client_key] = pipeline
+                with self._clients_lock:
+                    self.connected_clients[client_key] = pipeline
                 pipeline.start()
                 logger.info('Got client: [{}], ip: {}, port: {}, n_clients: {}'.format(
                     client_key, client_address[0], client_address[1], len(self.connected_clients)))
@@ -452,7 +459,10 @@ class Server(threading.Thread):
 
     def msg_forwarding(self, client_key: str, topic: dict):
         if client_key in self.connected_clients:
-            self.connected_clients[client_key].sub_forwarding_topic(topic)
+            if self.connected_clients[client_key].is_running():
+                self.connected_clients[client_key].sub_forwarding_topic(topic)
+            else:
+                self.quit(client_key)
 
     def quit(self, client_key=None):
         try:
@@ -464,7 +474,8 @@ class Server(threading.Thread):
                 remove_topic(client_key)
                 # show_topic_list()
                 self.connected_clients[client_key].quit()
-                del self.connected_clients[client_key]
+                with self._clients_lock:
+                    del self.connected_clients[client_key]
         except Exception as e:
             logger.error("Server->quit: {}".format(e))
 

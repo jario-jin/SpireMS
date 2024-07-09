@@ -61,10 +61,9 @@ class Subscriber(threading.Thread):
 
     def heartbeat(self):
         while self.heartbeat_running:
-            all_types = get_all_msg_types()
             try:
                 if time.time() - self.last_send_time >= 1.0:
-                    apply_topic = all_types['_sys_msgs::Subscriber'].copy()
+                    apply_topic = get_all_msg_types()['_sys_msgs::Subscriber'].copy()
                     apply_topic['topic_type'] = self.topic_type
                     apply_topic['url'] = self.topic_url
                     with self._send_lock:
@@ -72,8 +71,10 @@ class Subscriber(threading.Thread):
                     self.last_send_time = time.time()
             except Exception as e:
                 logger.warning("({}) heartbeat: {}".format(self.topic_url, e))
+
             time.sleep(1)
             if self.force_quit:
+                self.heartbeat_running = False
                 break
 
     def _link(self):
@@ -108,11 +109,11 @@ class Subscriber(threading.Thread):
                 logger.warning("({}) unsuspend: {}".format(self.topic_url, e))
 
     def _parse_msg(self, msg):
-        response = get_all_msg_types()['_sys_msgs::Result'].copy()
         success, decode_data = decode_msg(msg)
         if success and decode_data['type'] == '_sys_msgs::TopicDown':
             # print("{:.3f}: {}".format(time.time() - decode_data['timestamp'], decode_data))
             self.callback_func(decode_data['topic'])
+            response = get_all_msg_types()['_sys_msgs::Result'].copy()
             response['id'] = decode_data['id']
             with self._send_lock:
                 self.client_socket.sendall(encode_msg(response))
@@ -126,6 +127,7 @@ class Subscriber(threading.Thread):
         big_msg = 0
         while self.running:
             if self.force_quit:
+                self.running = False
                 break
             try:
                 data = self.client_socket.recv(1024 * 1024)  # 64K, 65536

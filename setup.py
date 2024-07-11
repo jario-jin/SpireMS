@@ -24,6 +24,7 @@ def get_package_data():
     data.append('msgs/_visual_msgs/*.json')
     data.append('msgs/sensor_msgs/*.json')
     data.append('msgs/std_msgs/*.json')
+    data.append('msgs/wedet_msgs/*.json')
     data.append('logs/*.md')
     data.append('res/*.ttf')
     data.append('res/*.jpg')

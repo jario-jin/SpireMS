@@ -255,7 +255,7 @@ class Pipeline(threading.Thread):
                 self.quit()
                 self._server.quit(self.client_key)
 
-            time.sleep(0.002)
+            time.sleep(0.02)
 
     def sub_forwarding_topic(self, topic: dict):
         # print(self.transmission_delay)
@@ -410,7 +410,6 @@ class Pipeline(threading.Thread):
                 if self.sub_type is not None:
                     remove_subscriber(self.client_key)
                 self.client_socket.close()
-                self._quit = True
             except Exception as e:
                 logger.error("(ID: {}, P: {}, S: {}) Pipeline->quit: {}".format(
                     self.client_key, self.pub_type, self.sub_url, e))
@@ -474,10 +473,12 @@ class Server(threading.Thread):
                 remove_topic(client_key)
                 # show_topic_list()
                 self.connected_clients[client_key].quit()
-                with self._clients_lock:
-                    del self.connected_clients[client_key]
         except Exception as e:
             logger.error("Server->quit: {}".format(e))
+        finally:
+            with self._clients_lock:
+                if client_key in self.connected_clients:
+                    del self.connected_clients[client_key]
 
         logger.info("Now clients remain: {}, {}".format(
             len(self.connected_clients),

@@ -37,41 +37,39 @@ class SpireViewPipeline(threading.Thread):
         self.running = True
 
     def parse_results(self, msg):
-        self._r_queue_lock.acquire()
-        self.res_queue.put(msg)
-        self._r_queue_lock.release()
+        with self._r_queue_lock:
+            self.res_queue.put(msg)
 
     def parse_cv_job(self, msg):
-        self._j_queue_lock.acquire()
-        self.job_queue.put(msg)
-        self._j_queue_lock.release()
+        with self._j_queue_lock:
+            self.job_queue.put(msg)
 
     def run(self):
         while self.running:
             while not self.job_queue.empty() or not self.res_queue.empty():
                 if not self.job_queue.empty():
-                    self._j_queue_lock.acquire()
-                    msg = self.job_queue.get()
-                    self._j_queue_lock.release()
+                    with self._j_queue_lock:
+                        msg = self.job_queue.get()
+
                     img_msg = msg['image']
                     img_msg['client_id'] = msg['client_id']
                     if msg['algorithm'] in supported_algorithms:
                         self.i_job_pubs[msg['algorithm']].publish(img_msg, enforce=True)
 
                 if not self.res_queue.empty():
-                    self._r_queue_lock.acquire()
-                    msg = self.res_queue.get()
-                    self._r_queue_lock.release()
+                    with self._r_queue_lock:
+                        msg = self.res_queue.get()
+
                     res_url = "/SpireView/{}/CVJobResults".format(msg['client_id'])
-                    if msg['client_id'] not in self.e_job_pubs:
-                        e_pub = Publisher(res_url, msg['type'], ip=external_ip, port=external_port)
-                        self.e_job_pubs[msg['client_id']] = e_pub
-                    self.e_job_pubs[msg['client_id']].publish(msg, enforce=True)
+                    if res_url not in self.e_job_pubs:
+                        self.e_job_pubs[res_url] = Publisher(res_url, msg['type'], ip=external_ip, port=external_port)
+                    self.e_job_pubs[res_url].publish(msg, enforce=True)
 
             to_remove = []
             for key, pub in self.e_job_pubs.items():
                 if pub.idle_time() > 600:
                     pub.kill()
+                    pub.join()
                     to_remove.append(key)
             for key in to_remove:
                 del self.e_job_pubs[key]

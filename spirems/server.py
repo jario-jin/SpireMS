@@ -227,35 +227,31 @@ class Pipeline(threading.Thread):
 
     def sub_forwarding(self):
         while self.running:
-            while not self.sub_forwarding_queue.empty():
-                try:
-                    with self._queue_lock:
-                        topic = self.sub_forwarding_queue.get()
+            try:
+                topic = self.sub_forwarding_queue.get(block=True)
 
-                    if not self.sub_suspended and (
-                            time.time() - self.last_upload_time > self.transmission_delay * 0.3 or self.pub_enforce):
-                        self.pass_id += 1
-                        passed_msg = get_all_msg_types()['_sys_msgs::TopicDown'].copy()
-                        passed_msg['id'] = self.pass_id
-                        passed_msg['topic'] = topic
-                        with self._ids_lock:
-                            self.passed_ids[self.pass_id] = [time.time(), -1]  # Now, Delay
-                        with self._send_lock:
-                            self.client_socket.sendall(encode_msg(passed_msg))
-                        self.last_send_time = time.time()
-                        self.last_upload_time = time.time()
-                except Exception as e:
-                    logger.error("(ID: {}, P: {}, S: {}) Pipeline->sub_forwarding: {}".format(
-                        self.client_key, self.pub_type, self.sub_url, e))
-                    self.running = False
-                    break
+                if not self.sub_suspended and (
+                        time.time() - self.last_upload_time > self.transmission_delay * 0.3 or self.pub_enforce):
+                    self.pass_id += 1
+                    passed_msg = get_all_msg_types()['_sys_msgs::TopicDown'].copy()
+                    passed_msg['id'] = self.pass_id
+                    passed_msg['topic'] = topic
+                    with self._ids_lock:
+                        self.passed_ids[self.pass_id] = [time.time(), -1]  # Now, Delay
+                    with self._send_lock:
+                        self.client_socket.sendall(encode_msg(passed_msg))
+                    self.last_send_time = time.time()
+                    self.last_upload_time = time.time()
+            except Exception as e:
+                logger.error("(ID: {}, P: {}, S: {}) Pipeline->sub_forwarding: {}".format(
+                    self.client_key, self.pub_type, self.sub_url, e))
+                self.running = False
+                break
 
-            if not self.running and not self._quit:
-                logger.info('Quit by sub_forwarding')
-                self.quit()
-                self._server.quit(self.client_key)
-
-            time.sleep(0.02)
+        if not self.running and not self._quit:
+            logger.info('Quit by sub_forwarding')
+            self.quit()
+            self._server.quit(self.client_key)
 
     def sub_forwarding_topic(self, topic: dict):
         # print(self.transmission_delay)

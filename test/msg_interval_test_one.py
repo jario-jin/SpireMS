@@ -11,6 +11,7 @@ logger = get_logger('TestCaseMsgIntervalOne')
 
 
 max_dt = 0
+max_delay = 0
 t1 = 0
 n_timer_msgs = 0
 t_timer = 0
@@ -18,7 +19,7 @@ fps_timer = 0
 
 
 def callback_f(msg):
-    global max_dt, t1
+    global max_dt, t1, max_delay
     global n_timer_msgs, t_timer, fps_timer
     if t_timer == 0:
         t_timer = time.time()
@@ -28,9 +29,14 @@ def callback_f(msg):
         t_timer = time.time()
     n_timer_msgs += 1
     # print("Msg: {}".format(msg))
+    delay = time.time() - msg['timestamp']
+    if delay > max_delay:
+        max_delay = delay
+        logger.warning("TimerOne Max-Dt: {}, Max-Delay: {}".format(max_dt, max_delay))
     if t1 != 0 and time.time() - t1 > max_dt:
         max_dt = time.time() - t1
-        logger.warning("TimerOne Max-Dt: {}".format(max_dt))
+        logger.warning("TimerOne Max-Dt: {}, Max-Delay: {}".format(max_dt, max_delay))
+
     t1 = time.time()
 
 

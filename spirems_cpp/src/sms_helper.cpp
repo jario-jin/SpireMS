@@ -9,35 +9,182 @@
 #include <cstring>
 #include <algorithm>
 #include <iostream>
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 
 
 namespace sms {
 
 
-void get_all_msg_types(std::vector<nlohmann::json>& all_msgs, std::string type_need)
-{
-    std::string msgs_path = "/home/jario/spirems/spirems/msgs";
+std::vector<nlohmann::json> g_all_msgs;
 
-    std::vector<std::string> file_paths;
-    _list_dir(msgs_path, file_paths, ".json", "", true);
-    for (std::string file_path : file_paths)
+
+std::vector<nlohmann::json> get_all_msg_types(std::string type_need)
+{
+    std::string msgs_path = "/home/jario/deep/spirems/spirems/msgs";
+
+    if (g_all_msgs.size() == 0)
     {
-        std::ifstream f(file_path);
-        nlohmann::json data = nlohmann::json::parse(f);
+        std::vector<std::string> file_paths;
+        _list_dir(msgs_path, file_paths, ".json", "", true);
+        for (std::string file_path : file_paths)
+        {
+            std::ifstream f(file_path);
+            nlohmann::json data = nlohmann::json::parse(f);
+            g_all_msgs.push_back(data);
+            // std::cout << data["type"] << std::endl;
+        }
+    }
+    std::vector<nlohmann::json> res_msgs;
+    for (nlohmann::json msg_json : g_all_msgs)
+    {
         if (type_need.size() > 0)
         {
-            if (type_need == data["type"])
-                all_msgs.push_back(data);
+            if (type_need == msg_json["type"])
+                res_msgs.push_back(msg_json);
         }
         else
         {
-            all_msgs.push_back(data);
+            res_msgs.push_back(msg_json);
         }
-        // std::cout << data["type"] << std::endl;
+    }
+    return res_msgs;
+}
+
+
+double get_time_sec()
+{
+    auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    return microseconds / 1e6;
+}
+
+std::string _hex2string(const std::string &hex_data)
+{
+    std::stringstream ss;
+    for (size_t i=0; i< hex_data.length(); i+=2)
+    {
+        int hex_value;
+        std::stringstream hex_stream(hex_data.substr(i, 2));
+
+        hex_stream >> std::hex >> hex_value;
+        ss << static_cast<char>(hex_value);
+    }
+    return ss.str();
+}
+
+std::string _g_msg_header = _hex2string("EAECFBFD");
+
+int _index_msg_header(std::string& data)
+{
+    int index = -1;
+    if (data.size() >= 4)
+    {
+        index = data.find(_g_msg_header);
+    }
+    return index;
+}
+
+
+int _decode_msg_header(std::string& data)
+{
+    int msg_len = 0;
+    if (data.size() > 8)
+    {
+        int* plen = (int*)(data.c_str() + 4);
+        msg_len = *plen + 8;
+    }
+    return msg_len;
+}
+
+
+void _check_msg(std::string& data, std::vector<std::string>& checked_msgs, std::vector<std::string>& parted_msgs, std::vector<int>& parted_lens)
+{
+    int index = _index_msg_header(data);
+    if (index >= 0)
+    {
+        if (index > 0)
+        {
+            std::string parted_msg = data.substr(0, index);
+            parted_msgs.push_back(parted_msg);
+            parted_lens.push_back(0);
+        }
+        data = data.substr(index, data.length() - index);
+        int msg_len = _decode_msg_header(data);
+        if (msg_len > 8)
+        {
+            while (data.size() >= msg_len)
+            {
+                if (msg_len > 8)
+                    checked_msgs.push_back(data.substr(0, msg_len));
+
+                data = data.substr(msg_len, data.length() - msg_len);
+                index = _index_msg_header(data);
+                if (index >= 0)
+                {
+                    data = data.substr(index, data.length() - index);
+                    msg_len = _decode_msg_header(data);
+                    if (msg_len <= 8)
+                        break;
+                }
+                else
+                {
+                    msg_len = 0;
+                    break;
+                }
+            }
+            if (msg_len > 8 && msg_len < 1024 * 1024 * 5)
+            {
+                parted_msgs.push_back(data);
+                parted_lens.push_back(msg_len);
+            }
+        }
+    }
+    else if (data.length() > 0)
+    {
+        parted_msgs.push_back(data);
+        parted_lens.push_back(0);
     }
 }
 
+
+std::string encode_msg(nlohmann::json& json_msg)
+{
+    if (json_msg["timestamp"] == 0.)
+    {
+        json_msg["timestamp"] = get_time_sec();
+    }
+    // qDebug("%.6f", (double)json_msg["timestamp"]);
+    std::string json_str = json_msg.dump();
+    int json_len = json_str.size();
+
+    size_t length = sizeof(int);
+    char *pdata = (char*) &json_len;
+
+    std::string bytes = _g_msg_header + std::string(pdata, length) + json_str;
+    // qDebug() << "[SMS] " + QString::fromUtf8(bytes);
+    return bytes;
+}
+
+
+bool decode_msg(std::string& byte_msg, nlohmann::json& json_msg)
+{
+    bool succ = false;
+    if (byte_msg.size() > 8)
+    {
+        if (byte_msg.substr(0, 4) == _g_msg_header)
+        {
+            int msg_len = _decode_msg_header(byte_msg);
+            if (msg_len == byte_msg.size())
+            {
+                byte_msg = byte_msg.substr(8, msg_len - 8);
+                json_msg = nlohmann::json::parse(byte_msg);
+                succ = true;
+            }
+        }
+    }
+    return succ;
+}
 
 
 std::vector<std::string> _split(const std::string& srcstr, const std::string& delimeter)

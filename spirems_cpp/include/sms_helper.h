@@ -2,13 +2,20 @@
 #define __SMS_HELPER__
 #include <string>
 #include <vector>
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 
 
 namespace sms {
 
-void get_all_msg_types(std::vector<nlohmann::json>& all_msgs, std::string type_need="");
+std::vector<nlohmann::json> get_all_msg_types(std::string type_need="");
+double get_time_sec();
+bool decode_msg(std::string& byte_msg, nlohmann::json& json_msg);
+std::string encode_msg(nlohmann::json& json_msg);
 
+std::string _hex2string(const std::string &hex_data);
+int _index_msg_header(std::string& data);
+int _decode_msg_header(std::string& data);
+void _check_msg(std::string& data, std::vector<std::string>& checked_msgs, std::vector<std::string>& parted_msgs, std::vector<int>& parted_lens);
 
 std::vector<std::string> _split(const std::string& srcstr, const std::string& delimeter);
 bool _startswith(const std::string& str, const std::string& start);

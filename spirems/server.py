@@ -68,7 +68,10 @@ def remove_topic(client_key: str):
     if client_key in topic_list['from_key']:
         url = topic_list['from_key'][client_key]['url']
         with TOPIC_LIST_LOCK:
-            del topic_list['from_topic'][url]
+            if client_key in topic_list['from_topic'][url]['key']:
+                del topic_list['from_topic'][url]['key'][topic_list['from_topic'][url]['key'].index(client_key)]
+            if not topic_list['from_topic'][url]['key']:
+                del topic_list['from_topic'][url]
             del topic_list['from_key'][client_key]
         sync_topic_subscriber()
 
@@ -160,7 +163,6 @@ class Pipeline(threading.Thread):
         self.transmission_delay = 0.0  # second
         self.package_loss_rate = 0.0  # 0-100 %
         self.sub_forwarding_queue = Queue()
-        self._queue_lock = threading.Lock()
         self._send_lock = threading.Lock()
         self.heartbeat_thread = threading.Thread(target=self.heartbeat)
         self.heartbeat_thread.start()
@@ -229,6 +231,8 @@ class Pipeline(threading.Thread):
         while self.running:
             try:
                 topic = self.sub_forwarding_queue.get(block=True)
+                if topic is None:
+                    raise EOFError('Topic is None.')
 
                 if not self.sub_suspended and (
                         time.time() - self.last_upload_time > self.transmission_delay * 0.3 or self.pub_enforce):
@@ -256,8 +260,7 @@ class Pipeline(threading.Thread):
     def sub_forwarding_topic(self, topic: dict):
         # print(self.transmission_delay)
         if self.running and not self.sub_suspended:
-            with self._queue_lock:
-                self.sub_forwarding_queue.put(topic)
+            self.sub_forwarding_queue.put(topic)
 
     def _pub_forwarding_topic(self, topic: dict):
         all_topics = get_public_topic()
@@ -403,6 +406,7 @@ class Pipeline(threading.Thread):
     def quit(self):
         if not self._quit:
             try:
+                self.sub_forwarding_queue.put(None)
                 if self.sub_type is not None:
                     remove_subscriber(self.client_key)
                 self.client_socket.close()

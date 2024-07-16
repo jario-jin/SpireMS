@@ -3,15 +3,21 @@
 #include <string>
 #include <vector>
 #include <json.hpp>
+#include <opencv2/opencv.hpp>
 
 
 namespace sms {
 
 std::vector<nlohmann::json> get_all_msg_types(std::string type_need="");
 double get_time_sec();
+void msleep(int ms);
 bool decode_msg(std::string& byte_msg, nlohmann::json& json_msg);
 std::string encode_msg(nlohmann::json& json_msg);
+nlohmann::json cvimg2sms(cv::Mat cvimg, std::string encoding="jpg");
+cv::Mat sms2cvimg(nlohmann::json msg);
 
+std::string _base64_encode(const std::string& input);
+std::string _base64_decode(const std::string& input);
 std::string _hex2string(const std::string &hex_data);
 int _index_msg_header(std::string& data);
 int _decode_msg_header(std::string& data);

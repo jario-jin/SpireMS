@@ -2,6 +2,7 @@
 #include <string>
 #include <ctime>
 #include <chrono>
+#include <thread>
 #include <fstream>
 #include <dirent.h>
 #include <unordered_map>
@@ -10,6 +11,9 @@
 #include <algorithm>
 #include <iostream>
 #include <json.hpp>
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
+#include <openssl/evp.h>
 
 
 namespace sms {
@@ -57,6 +61,11 @@ double get_time_sec()
     auto duration = now.time_since_epoch();
     auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     return microseconds / 1e6;
+}
+
+void msleep(int ms)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 std::string _hex2string(const std::string &hex_data)
@@ -150,19 +159,24 @@ void _check_msg(std::string& data, std::vector<std::string>& checked_msgs, std::
 
 std::string encode_msg(nlohmann::json& json_msg)
 {
-    if (json_msg["timestamp"] == 0.)
+    if (json_msg["timestamp"] == 0.0)
     {
         json_msg["timestamp"] = get_time_sec();
     }
-    // qDebug("%.6f", (double)json_msg["timestamp"]);
     std::string json_str = json_msg.dump();
     int json_len = json_str.size();
 
     size_t length = sizeof(int);
+    assert(length == 4);
     char *pdata = (char*) &json_len;
+    char len_buf[5];
+    for (size_t i=0; i<4; i++)
+    {
+        len_buf[i] = *pdata++;
+    }
+    len_buf[4] = 0;
 
-    std::string bytes = _g_msg_header + std::string(pdata, length) + json_str;
-    // qDebug() << "[SMS] " + QString::fromUtf8(bytes);
+    std::string bytes = _g_msg_header + std::string(len_buf, 4) + json_str;
     return bytes;
 }
 
@@ -304,5 +318,84 @@ void _list_dir(std::string dir, std::vector<std::string>& files, std::string suf
     }
     sort(files.begin(), files.end()); //sort names
 }
+
+
+
+cv::Mat sms2cvimg(nlohmann::json msg)
+{
+    assert(msg["type"] == "sensor_msgs::Image");
+    std::string dncoded_base64 = _base64_decode(msg["data"]);
+
+    // QByteArray decoded_base64 = QByteArray::fromBase64(QByteArray::fromStdString(msg["data"].get<std::string>()));
+    std::vector<uchar> decoded_vec;
+    decoded_vec.assign(dncoded_base64.begin(), dncoded_base64.end());
+    cv::Mat cvimg;
+    if (msg["encoding"] == "jpeg" || msg["encoding"] == "jpg" || msg["encoding"] == "png")
+    {
+        cvimg = cv::imdecode(decoded_vec, cv::IMREAD_COLOR);
+    }
+    return cvimg;
+}
+
+nlohmann::json cvimg2sms(cv::Mat cvimg, std::string encoding)
+{
+    std::vector<uchar> img_encode;
+    if (encoding == "jpg" || encoding == "jpeg")
+    {
+        cv::imencode(".jpg", cvimg, img_encode);
+    }
+    else if (encoding == "png")
+    {
+        cv::imencode(".png", cvimg, img_encode);
+    }
+    std::vector<nlohmann::json> res_msgs = get_all_msg_types("sensor_msgs::Image");
+    nlohmann::json img_msg = res_msgs[0];
+    img_msg["height"] = cvimg.rows;
+    img_msg["width"] = cvimg.cols;
+    img_msg["channel"] = 3;
+    img_msg["encoding"] = encoding;
+    std::string encoded_base64 = std::string(img_encode.begin(), img_encode.end());
+    img_msg["data"] = _base64_encode(encoded_base64);
+    return img_msg;
+}
+
+
+std::string _base64_encode(const std::string& input)
+{
+    BUF_MEM* bptr;
+
+    BIO* b64 = BIO_new(BIO_f_base64());
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    BIO* bmem = BIO_new(BIO_s_mem());
+    b64 = BIO_push(b64, bmem);
+    BIO_write(b64, input.data(), input.size());
+    BIO_flush(b64);
+    BIO_get_mem_ptr(b64, &bptr);
+    BIO_set_close(b64, BIO_NOCLOSE);
+
+    std::string out;
+    out.resize(bptr->length);
+    memcpy(&out[0], bptr->data, bptr->length);
+    BIO_free_all(b64);
+
+    return out;
+}
+
+std::string _base64_decode(const std::string& input)
+{
+    std::string out;
+    out.resize(input.size());
+
+    BIO* b64 = BIO_new(BIO_f_base64());
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    BIO* bmem = BIO_new_mem_buf(input.data(), input.size());
+    bmem = BIO_push(b64, bmem);
+    int len = BIO_read(bmem, &out[0], input.size());
+    BIO_free_all(bmem);
+
+    out.resize(len);
+    return out;
+}
+
 
 }

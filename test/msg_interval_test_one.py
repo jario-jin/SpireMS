@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 import cv2
 
-from spirems import Publisher, Subscriber, get_all_msg_types, cvimg2sms, sms2cvimg
+from spirems import Publisher, Subscriber, get_all_msg_types, cvimg2sms, sms2cvimg, load_msg_types, def_msg
 import threading
 import time
 import concurrent.futures
@@ -43,9 +43,10 @@ def callback_f(msg):
 sub = Subscriber('/testcase/num_arr_v2', 'std_msgs::Null', callback_f)
 pub = Publisher('/testcase/num_arr_v2', 'std_msgs::Null')
 cnt = 0
+load_msg_types()
 while True:
     time.sleep(0.01)
-    tpc = get_all_msg_types()['std_msgs::Null'].copy()
+    tpc = def_msg('std_msgs::Null')
     tpc['data'] = [cnt]
     cnt += 1
     pub.publish(tpc, enforce=True)

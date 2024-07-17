@@ -15,7 +15,7 @@ from spirems.msg_helper import (get_all_msg_types, index_msg_header, decode_msg_
 from spirems.error_code import ec2msg
 
 
-logger = get_logger('Server')
+logger = get_logger('Core')
 TOPIC_LIST = None
 TOPIC_LIST_LOCK = threading.Lock()
 
@@ -420,7 +420,7 @@ class Pipeline(threading.Thread):
         return self.running
 
 
-class Server(threading.Thread):
+class Core(threading.Thread):
     def __init__(self, port=9094):
         threading.Thread.__init__(self)
         self.socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -428,13 +428,27 @@ class Server(threading.Thread):
         self.listening = False
         self.connected_clients = dict()
         self._clients_lock = threading.Lock()
+        self.listen()
 
     def listen(self):
         self.socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # self.socket_server.settimeout(5)
         self.socket_server.bind(('', self.port))
         self.socket_server.listen(4096)
-        logger.info('Start listening on port {} ...'.format(self.port))
+        spirems_pattern = \
+"""
+Welcome to:
+
+  o-o                 o   o  o-o  
+ |          o         |\ /| |     
+  o-o  o-o    o-o o-o | O |  o-o  
+     | |  | | |   |-' |   |     | 
+ o--o  O-o  | o   o-o o   o o--o  
+       |                          
+       o                          
+"""
+        logger.info(spirems_pattern)
+        logger.info('Start on port {} ...'.format(self.port))
         self.listening = True
         self.start()
 
@@ -487,6 +501,5 @@ class Server(threading.Thread):
 
 
 if __name__ == '__main__':
-    server = Server(9094)
-    server.listen()
+    server = Core(9094)
     server.join()

@@ -34,6 +34,28 @@ def get_all_msg_types(msgs_dir: str = msg_dir) -> dict:
 get_all_msg_types()
 
 
+def load_msg_types(msgs_dir: str = msg_dir):
+    msg_types = get_all_msg_types()
+    sub_dirs = os.listdir(msgs_dir)
+    for sub_dir in sub_dirs:
+        if os.path.isdir(os.path.join(msgs_dir, sub_dir)):
+            json_fs = os.listdir(os.path.join(msgs_dir, sub_dir))
+            for json_f in json_fs:
+                if os.path.splitext(json_f)[-1] == '.json':
+                    with open(os.path.join(msgs_dir, sub_dir, json_f), 'r') as file:
+                        msg = json.load(file)
+                    if msg['type'] not in msg_types:
+                        msg_types[msg['type']] = msg
+
+
+def def_msg(msg_type: str = 'std_msgs::Null') -> dict:
+    msg_types = get_all_msg_types()
+    if msg_type in msg_types:
+        return msg_types[msg_type].copy()
+    else:
+        return msg_types['std_msgs::Null'].copy()
+
+
 def index_msg_header(data: bytes) -> int:
     if b'\xEA\xEC\xFB\xFD' in data:
         return data.index(b'\xEA\xEC\xFB\xFD')

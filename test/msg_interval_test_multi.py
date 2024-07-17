@@ -9,7 +9,7 @@ import concurrent.futures
 from spirems.log import get_logger
 logger = get_logger('TestCaseMsgIntervalMulti')
 
-vid_dir = "/home/jario/Videos/002.mkv"
+vid_dir = "F:/002.mkv"
 max_dt = 0
 t1 = 0
 max_dt_img = 0

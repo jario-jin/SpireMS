@@ -42,7 +42,14 @@ Publisher::Publisher(std::string topic_url, std::string topic_type, std::string 
 
 Publisher::~Publisher()
 {
-    delete this->_buf;
+    this->_force_quit = true;
+    this->join();
+    if (this->_buf)
+        delete this->_buf;
+    if (this->_recv_t)
+        delete this->_recv_t;
+    if (this->_send_t)
+        delete this->_send_t;
 }
 
 void Publisher::join()

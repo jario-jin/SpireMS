@@ -55,6 +55,21 @@ std::vector<nlohmann::json> get_all_msg_types(std::string type_need)
 }
 
 
+nlohmann::json def_msg(std::string type_need)
+{
+    std::vector<nlohmann::json> msgs = get_all_msg_types();
+    nlohmann::json default_;
+    for (nlohmann::json msg_json : g_all_msgs)
+    {
+        if (type_need == msg_json["type"])
+            return msg_json;
+        if ("std_msgs::Null" == msg_json["type"])
+            default_ = msg_json;
+    }
+    return default_;
+}
+
+
 double get_time_sec()
 {
     auto now = std::chrono::system_clock::now();

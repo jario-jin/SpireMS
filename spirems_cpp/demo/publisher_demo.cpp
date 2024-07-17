@@ -8,20 +8,24 @@
 using namespace std;
 
 
+void callback(nlohmann::json msg)
+{
+    std::cout << msg["data"] << std::endl;
+}
+
+
 int main(int argc, char *argv[])
 {
-    // std::vector<nlohmann::json> all_msgs = sms::get_all_msg_types("sensor_msgs::Image");
-    // nlohmann::json msg = all_msgs[0];
-    sms::Publisher pub("/test/t1", "sensor_msgs::Image", "192.168.88.2");
+    sms::Publisher pub("/test/t1", "std_msgs::Null");
+    sms::Subscriber sub("/testcase/num_arr_v2", "std_msgs::Null", callback);
     int cnt = 0;
+
     while (1)
     {
-        cv::Mat img = cv::imread("/home/jario/Pictures/Screenshots/001.png");
-        nlohmann::json msg = sms::cvimg2sms(img);
-        // cv::Mat img2 = sms::sms2cvimg(msg);
-        // nlohmann::json msg2 = sms::cvimg2sms(img2);
+        nlohmann::json msg = sms::def_msg("std_msgs::Null");
+        msg["data"] = "hello";
         pub.publish(msg);
-        sms::msleep(500);
+        sms::msleep(20);
     }
 
     pub.join();

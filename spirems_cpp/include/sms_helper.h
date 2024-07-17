@@ -8,6 +8,7 @@
 
 namespace sms {
 
+nlohmann::json def_msg(std::string type_need);
 std::vector<nlohmann::json> get_all_msg_types(std::string type_need="");
 double get_time_sec();
 void msleep(int ms);

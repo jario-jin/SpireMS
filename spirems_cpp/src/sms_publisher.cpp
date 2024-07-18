@@ -32,7 +32,7 @@ Publisher::Publisher(std::string topic_url, std::string topic_type, std::string 
     this->_upload_id = 0;
     this->_transmission_delay = 0.0;
 
-    std::vector<nlohmann::json> all_msgs = get_all_msg_types("");
+    load_msg_types();
 
     this->_recv_t = new std::thread(&Publisher::recv_loop, this);
     this->_send_t = new std::thread(&Publisher::send_loop, this);
@@ -76,8 +76,7 @@ bool Publisher::publish(nlohmann::json json_msg, bool enforce)
     if (!this->_suspended && this->_heartbeat_running && (get_time_sec() - this->_last_upload_time > this->_transmission_delay * 0.3 || enforce))
     {
         json_msg["timestamp"] = get_time_sec();
-        std::vector<nlohmann::json> res_msgs = get_all_msg_types("_sys_msgs::TopicUpload");
-        nlohmann::json topic_upload = res_msgs[0];
+        nlohmann::json topic_upload = def_msg("_sys_msgs::TopicUpload");
         topic_upload["topic"] = json_msg;
         this->_upload_id += 1;
         if (this->_upload_id > 1e6)
@@ -212,8 +211,7 @@ void Publisher::send_loop()
 
 void Publisher::_heartbeat()
 {
-    std::vector<nlohmann::json> res_msgs = get_all_msg_types("_sys_msgs::Publisher");
-    nlohmann::json heartbeat_msg = res_msgs[0];
+    nlohmann::json heartbeat_msg = def_msg("_sys_msgs::Publisher");
     heartbeat_msg["topic_type"] = this->_topic_type;
     heartbeat_msg["url"] = this->_topic_url;
     heartbeat_msg["enforce"] = this->_enforce_publish;

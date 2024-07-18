@@ -19,54 +19,63 @@
 namespace sms {
 
 
-std::vector<nlohmann::json> g_all_msgs;
+nlohmann::json g_msg_types;
 
 
-std::vector<nlohmann::json> get_all_msg_types(std::string type_need)
+std::string _get_pdir(const std::string& path)
 {
-    std::string msgs_path = "/home/jario/deep/spirems/spirems/msgs";
-
-    if (g_all_msgs.size() == 0)
+    size_t last_slash = path.find_last_of("/\\");
+    if (last_slash!= std::string::npos)
     {
-        std::vector<std::string> file_paths;
-        _list_dir(msgs_path, file_paths, ".json", "", true);
-        for (std::string file_path : file_paths)
-        {
-            std::ifstream f(file_path);
-            nlohmann::json data = nlohmann::json::parse(f);
-            g_all_msgs.push_back(data);
-            // std::cout << data["type"] << std::endl;
-        }
+        return path.substr(0, last_slash);
     }
-    std::vector<nlohmann::json> res_msgs;
-    for (nlohmann::json msg_json : g_all_msgs)
-    {
-        if (type_need.size() > 0)
-        {
-            if (type_need == msg_json["type"])
-                res_msgs.push_back(msg_json);
-        }
-        else
-        {
-            res_msgs.push_back(msg_json);
-        }
-    }
-    return res_msgs;
+    return "";
 }
 
 
+nlohmann::json load_msg_types(std::string msg_type_dir)
+{
+    if (msg_type_dir.empty())
+    {
+        msg_type_dir = _get_pdir(_get_pdir(_get_pdir(__FILE__))) + "/spirems/msgs";
+        if (!g_msg_types.empty())  return g_msg_types;
+    }
+    std::vector<std::string> file_paths;
+    _list_dir(msg_type_dir, file_paths, ".json", "", true);
+
+    for (std::string file_path : file_paths)
+    {
+        std::ifstream f(file_path);
+        nlohmann::json data = nlohmann::json::parse(f);
+        if (data.contains("type") && !g_msg_types.contains(data["type"]))
+        {
+            g_msg_types[data["type"]] = data;
+        }
+    }
+    if (g_msg_types.empty())
+    {
+        g_msg_types["std_msgs::Null"] = {
+            {"type", "std_msgs::Null"},
+            {"timestamp", 0.0}
+        };
+    }
+    return g_msg_types;
+}
+
 nlohmann::json def_msg(std::string type_need)
 {
-    std::vector<nlohmann::json> msgs = get_all_msg_types();
-    nlohmann::json default_;
-    for (nlohmann::json msg_json : g_all_msgs)
+    if (g_msg_types.empty())
     {
-        if (type_need == msg_json["type"])
-            return msg_json;
-        if ("std_msgs::Null" == msg_json["type"])
-            default_ = msg_json;
+        load_msg_types();
     }
-    return default_;
+    if (g_msg_types.contains(type_need))
+    {
+        return g_msg_types[type_need];
+    }
+    else
+    {
+        return g_msg_types["std_msgs::Null"];
+    }
 }
 
 
@@ -285,12 +294,14 @@ bool _is_file_exist(std::string& fn)
 void _list_dir(std::string dir, std::vector<std::string>& files, std::string suffixs, std::string prefix, bool r)
 {
     // assert(_endswith(dir, "/") || _endswith(dir, "\\"));
+    if (dir.empty())  return;
+
     DIR *pdir;
     struct dirent *ent;
     std::string childpath;
     std::string absolutepath;
     pdir = opendir(dir.c_str());
-    assert(pdir != NULL);
+    if (!pdir)  return;
 
     std::vector<std::string> suffixd(0);
     // std::cout << suffixs << std::endl;
@@ -363,8 +374,7 @@ nlohmann::json cvimg2sms(cv::Mat cvimg, std::string encoding)
     {
         cv::imencode(".png", cvimg, img_encode);
     }
-    std::vector<nlohmann::json> res_msgs = get_all_msg_types("sensor_msgs::Image");
-    nlohmann::json img_msg = res_msgs[0];
+    nlohmann::json img_msg = def_msg("sensor_msgs::Image");
     img_msg["height"] = cvimg.rows;
     img_msg["width"] = cvimg.cols;
     img_msg["channel"] = 3;

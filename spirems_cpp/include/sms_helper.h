@@ -8,8 +8,9 @@
 
 namespace sms {
 
+nlohmann::json load_msg_types(std::string msg_type_dir="");
 nlohmann::json def_msg(std::string type_need);
-std::vector<nlohmann::json> get_all_msg_types(std::string type_need="");
+
 double get_time_sec();
 void msleep(int ms);
 bool decode_msg(std::string& byte_msg, nlohmann::json& json_msg);
@@ -31,7 +32,7 @@ std::string _trim(const std::string& str);
 
 bool _is_file_exist(std::string& fn);
 void _list_dir(std::string dir, std::vector<std::string>& files, std::string suffixs="", std::string prefix="", bool r=false);
-
+std::string _get_pdir(const std::string& path);
 
 }
 

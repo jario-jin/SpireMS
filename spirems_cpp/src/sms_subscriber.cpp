@@ -30,7 +30,7 @@ Subscriber::Subscriber
     this->_recv_t = nullptr;
     this->_send_t = nullptr;
 
-    std::vector<nlohmann::json> all_msgs = get_all_msg_types("");
+    load_msg_types();
 
     this->_recv_t = new std::thread(&Subscriber::recv_loop, this);
     this->_send_t = new std::thread(&Subscriber::send_loop, this);
@@ -180,8 +180,7 @@ void Subscriber::suspend()
 {
     if (this->_running && this->_heartbeat_running)
     {
-        std::vector<nlohmann::json> res_msgs = get_all_msg_types("_sys_msgs::Suspend");
-        nlohmann::json res_msg = res_msgs[0];
+        nlohmann::json res_msg = def_msg("_sys_msgs::Suspend");
         std::string bytes = encode_msg(res_msg);
 
         this->_send_mtx.lock();
@@ -195,8 +194,7 @@ void Subscriber::unsuspend()
 {
     if (this->_running && this->_heartbeat_running)
     {
-        std::vector<nlohmann::json> res_msgs = get_all_msg_types("_sys_msgs::Unsuspend");
-        nlohmann::json res_msg = res_msgs[0];
+        nlohmann::json res_msg = def_msg("_sys_msgs::Unsuspend");
         std::string bytes = encode_msg(res_msg);
 
         this->_send_mtx.lock();
@@ -208,8 +206,7 @@ void Subscriber::unsuspend()
 
 void Subscriber::_heartbeat()
 {
-    std::vector<nlohmann::json> res_msgs = get_all_msg_types("_sys_msgs::Subscriber");
-    nlohmann::json heartbeat_msg = res_msgs[0];
+    nlohmann::json heartbeat_msg = def_msg("_sys_msgs::Subscriber");
     heartbeat_msg["topic_type"] = this->_topic_type;
     heartbeat_msg["url"] = this->_topic_url;
     std::string bytes = encode_msg(heartbeat_msg);
@@ -272,8 +269,7 @@ void Subscriber::_parse_msg(std::string msg)
     nlohmann::json json_msg;
     if (decode_msg(msg, json_msg))
     {
-        std::vector<nlohmann::json> res_msgs = get_all_msg_types("_sys_msgs::Result");
-        nlohmann::json res_msg = res_msgs[0];
+        nlohmann::json res_msg = def_msg("_sys_msgs::Result");
         if (json_msg["type"] == "_sys_msgs::TopicDown")
         {
             res_msg["id"] = json_msg["id"];

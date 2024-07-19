@@ -347,7 +347,7 @@ void _list_dir(std::string dir, std::vector<std::string>& files, std::string suf
 
 
 
-cv::Mat sms2cvimg(nlohmann::json msg)
+cv::Mat sms2cvimg(const nlohmann::json& msg)
 {
     assert(msg["type"] == "sensor_msgs::Image");
     std::string dncoded_base64 = _base64_decode(msg["data"]);
@@ -363,7 +363,7 @@ cv::Mat sms2cvimg(nlohmann::json msg)
     return cvimg;
 }
 
-nlohmann::json cvimg2sms(cv::Mat cvimg, std::string encoding)
+nlohmann::json cvimg2sms(const cv::Mat& cvimg, const std::string encoding)
 {
     std::vector<uchar> img_encode;
     if (encoding == "jpg" || encoding == "jpeg")
@@ -387,37 +387,42 @@ nlohmann::json cvimg2sms(cv::Mat cvimg, std::string encoding)
 
 std::string _base64_encode(const std::string& input)
 {
-    BIO* bmem = BIO_new(BIO_s_mem());
+    BUF_MEM* bptr;
+
     BIO* b64 = BIO_new(BIO_f_base64());
-
-    BIO_push(b64, bmem);
-    BIO_write(b64, input.c_str(), input.size());
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    BIO* bmem = BIO_new(BIO_s_mem());
+    b64 = BIO_push(b64, bmem);
+    BIO_write(b64, input.data(), input.size());
     BIO_flush(b64);
+    BIO_get_mem_ptr(b64, &bptr);
+    BIO_set_close(b64, BIO_NOCLOSE);
 
-    char* buf;
-    long len = BIO_get_mem_data(bmem, &buf);
-    std::string encoded(buf, len);
+    std::string out;
+    out.resize(bptr->length);
+    memcpy(&out[0], bptr->data, bptr->length);
+    BUF_MEM_free(bptr);
+    BIO_free(b64);
+    BIO_free(bmem);
 
-    BIO_free_all(bmem);
-    return encoded;
+    return out;
 }
 
 std::string _base64_decode(const std::string& input)
 {
-    BIO* bio = BIO_new(BIO_s_mem());
-    BIO_write(bio, input.c_str(), input.size());
+    std::string out;
+    out.resize(input.size());
 
     BIO* b64 = BIO_new(BIO_f_base64());
     BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-    BIO_push(b64, bio);
-
-    char* decoded_data = nullptr;
-    long decoded_length = BIO_get_mem_data(b64, &decoded_data);
-
-    std::string decoded_string(decoded_data, decoded_length);
-
-    BIO_free_all(bio);
-    return decoded_string;
+    BIO* bmem = BIO_new_mem_buf(input.data(), input.size());
+    bmem = BIO_push(b64, bmem);
+    int len = BIO_read(bmem, &out[0], input.size());
+    out.resize(len);
+    BIO_free_all(b64);
+    // BIO_free(bmem);
+   
+    return out;
 }
 
 

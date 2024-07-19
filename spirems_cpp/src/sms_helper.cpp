@@ -387,39 +387,37 @@ nlohmann::json cvimg2sms(cv::Mat cvimg, std::string encoding)
 
 std::string _base64_encode(const std::string& input)
 {
-    BUF_MEM* bptr;
-
-    BIO* b64 = BIO_new(BIO_f_base64());
-    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
     BIO* bmem = BIO_new(BIO_s_mem());
-    b64 = BIO_push(b64, bmem);
-    BIO_write(b64, input.data(), input.size());
+    BIO* b64 = BIO_new(BIO_f_base64());
+
+    BIO_push(b64, bmem);
+    BIO_write(b64, input.c_str(), input.size());
     BIO_flush(b64);
-    BIO_get_mem_ptr(b64, &bptr);
-    BIO_set_close(b64, BIO_NOCLOSE);
 
-    std::string out;
-    out.resize(bptr->length);
-    memcpy(&out[0], bptr->data, bptr->length);
-    BIO_free_all(b64);
+    char* buf;
+    long len = BIO_get_mem_data(bmem, &buf);
+    std::string encoded(buf, len);
 
-    return out;
+    BIO_free_all(bmem);
+    return encoded;
 }
 
 std::string _base64_decode(const std::string& input)
 {
-    std::string out;
-    out.resize(input.size());
+    BIO* bio = BIO_new(BIO_s_mem());
+    BIO_write(bio, input.c_str(), input.size());
 
     BIO* b64 = BIO_new(BIO_f_base64());
     BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-    BIO* bmem = BIO_new_mem_buf(input.data(), input.size());
-    bmem = BIO_push(b64, bmem);
-    int len = BIO_read(bmem, &out[0], input.size());
-    BIO_free_all(bmem);
+    BIO_push(b64, bio);
 
-    out.resize(len);
-    return out;
+    char* decoded_data = nullptr;
+    long decoded_length = BIO_get_mem_data(b64, &decoded_data);
+
+    std::string decoded_string(decoded_data, decoded_length);
+
+    BIO_free_all(bio);
+    return decoded_string;
 }
 
 

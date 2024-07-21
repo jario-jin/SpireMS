@@ -8,11 +8,6 @@ add_definitions(-DAPI_EXPORTS)
 set(CMAKE_BUILD_TYPE "Release")
 
 
-find_package(OpenSSL REQUIRED)
-message(STATUS "OpenSSL library status:")
-message(STATUS "    version: ${OPENSSL_VERSION}")
-message(STATUS "    libraries: ${OPENSSL_LIBRARIES}")
-message(STATUS "    include path: ${OPENSSL_INCLUDE_DIR}")
 find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV library status:")
 message(STATUS "    version: ${OpenCV_VERSION}")
@@ -43,7 +38,6 @@ add_library(sms_core SHARED ${spirems_SRCS})
 target_link_libraries(
   sms_core
   ${OpenCV_LIBS}
-  ${OPENSSL_LIBRARIES}
 )
 
 

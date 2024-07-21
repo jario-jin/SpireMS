@@ -11,9 +11,7 @@
 #include <algorithm>
 #include <iostream>
 #include <json.hpp>
-#include <openssl/bio.h>
-#include <openssl/buffer.h>
-#include <openssl/evp.h>
+#include <base64.hpp>
 
 
 namespace sms {
@@ -387,42 +385,12 @@ nlohmann::json cvimg2sms(const cv::Mat& cvimg, const std::string encoding)
 
 std::string _base64_encode(const std::string& input)
 {
-    BUF_MEM* bptr;
-
-    BIO* b64 = BIO_new(BIO_f_base64());
-    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-    BIO* bmem = BIO_new(BIO_s_mem());
-    b64 = BIO_push(b64, bmem);
-    BIO_write(b64, input.data(), input.size());
-    BIO_flush(b64);
-    BIO_get_mem_ptr(b64, &bptr);
-    BIO_set_close(b64, BIO_NOCLOSE);
-
-    std::string out;
-    out.resize(bptr->length);
-    memcpy(&out[0], bptr->data, bptr->length);
-    BUF_MEM_free(bptr);
-    BIO_free(b64);
-    BIO_free(bmem);
-
-    return out;
+    return base64::to_base64(input);
 }
 
 std::string _base64_decode(const std::string& input)
 {
-    std::string out;
-    out.resize(input.size());
-
-    BIO* b64 = BIO_new(BIO_f_base64());
-    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-    BIO* bmem = BIO_new_mem_buf(input.data(), input.size());
-    bmem = BIO_push(b64, bmem);
-    int len = BIO_read(bmem, &out[0], input.size());
-    out.resize(len);
-    BIO_free_all(b64);
-    // BIO_free(bmem);
-   
-    return out;
+    return base64::from_base64(input);
 }
 
 

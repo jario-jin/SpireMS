@@ -168,7 +168,7 @@ void Subscriber::send_loop()
         if (!this->_heartbeat_running)
         {
             n_try++;
-            if (n_try > 10)
+            if (n_try > 5)
             {
                 n_try = 0;
                 this->_link();
@@ -261,7 +261,7 @@ bool Subscriber::_link()
 		this->_close_socket();
 		return false;
 	}
-    
+
     this->_last_msg_len = 0;
     this->_last_msg.clear();
     this->_heartbeat();

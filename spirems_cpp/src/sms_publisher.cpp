@@ -79,7 +79,7 @@ bool Publisher::publish(nlohmann::json json_msg, bool enforce)
         nlohmann::json topic_upload = def_msg("_sys_msgs::TopicUpload");
         topic_upload["topic"] = json_msg;
         this->_upload_id += 1;
-        if (this->_upload_id > 1e6)
+        if (this->_upload_id > 1e5)
             this->_upload_id = 1;
         topic_upload["id"] = this->_upload_id;
         std::cout << "this->_upload_id: "<< this->_upload_id<<", len(this->_uploaded_ids): "<<this->_uploaded_ids.size()<<", (this->_uploaded_times): "<< this->_uploaded_times.size()<< std::endl;
@@ -203,7 +203,7 @@ void Publisher::send_loop()
         if (!this->_heartbeat_running)
         {
             n_try++;
-            if (n_try > 10)
+            if (n_try > 5)
             {
                 n_try = 0;
                 std::cout << "-- strat this->_link(): " << std::endl;
@@ -270,6 +270,11 @@ bool Publisher::_link()
 		return false;
 	}
     
+    this->_ids_mtx.lock();
+    this->_uploaded_ids.clear();
+    this->_uploaded_times.clear();
+    this->_upload_id = 0;
+    this->_ids_mtx.unlock();
     this->_last_msg_len = 0;
     this->_last_msg.clear();
     this->_heartbeat();

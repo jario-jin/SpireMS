@@ -24,7 +24,7 @@ Publisher::Publisher(std::string topic_url, std::string topic_type, std::string 
     this->_enforce_publish = false;
     
     this->_client_socket = -1;
-    this->_buf = new char[BUFF_SIZE];
+    this->_buf = new char[BUFF_SIZE + 1];
     this->_recv_t = nullptr;
     this->_send_t = nullptr;
 
@@ -82,6 +82,7 @@ bool Publisher::publish(nlohmann::json json_msg, bool enforce)
         if (this->_upload_id > 1e6)
             this->_upload_id = 1;
         topic_upload["id"] = this->_upload_id;
+        std::cout << "this->_upload_id: "<< this->_upload_id<<", len(this->_uploaded_ids): "<<this->_uploaded_ids.size()<<", (this->_uploaded_times): "<< this->_uploaded_times.size()<< std::endl;
 
         this->_ids_mtx.lock();
         this->_uploaded_ids.push_back(this->_upload_id);
@@ -111,21 +112,22 @@ void Publisher::recv_loop()
         }
         if (this->_client_socket < 0)
         {
-            // std::cout << "recv_loop() -> this->_client_socket < 0" << std::endl;
+            std::cout << "recv_loop() -> this->_client_socket < 0" << std::endl;
             this->_heartbeat_running = false;
-            msleep(10);
+            sleep(1);
             continue;
         }
         ssize_t buf_len = read(this->_client_socket, this->_buf, BUFF_SIZE);
         if (buf_len <= 0)
         {
-            // std::cout << "recv_loop() -> buf_len == 0" << std::endl;
+            std::cout << "recv_loop() -> buf_len == 0" << std::endl;
             this->_heartbeat_running = false;
             sleep(1);
             continue;
         }
         this->_buf[buf_len] = 0;
         std::string data(this->_buf, buf_len);
+        std::cout << "buf_len: " << buf_len << std::endl;
 
         std::vector<std::string> checked_msgs;
         std::vector<std::string> parted_msgs;
@@ -133,6 +135,7 @@ void Publisher::recv_loop()
         std::vector<std::string> recv_msgs;
 
         _check_msg(data, checked_msgs, parted_msgs, parted_lens);
+        std::cout << "len(this->_last_msg): " << this->_last_msg.size() << ", this->_last_msg_len: " << this->_last_msg_len << std::endl;
         if (parted_msgs.size() > 0)
         {
             for (int i=0; i<parted_msgs.size(); i++)
@@ -179,7 +182,7 @@ void Publisher::send_loop()
             }
             if (this->_client_socket < 0)
             {
-                // std::cout << "send_loop() -> this->_client_socket < 0" << std::endl;
+                std::cout << "send_loop() -> this->_client_socket < 0" << std::endl;
                 this->_heartbeat_running = false;
             }
             else
@@ -254,16 +257,18 @@ bool Publisher::_link()
     timeout.tv_usec = 0;
     if (setsockopt(this->_client_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
     {
-        close(this->_client_socket);
+        this->_close_socket();
 		return false;
     }
 
     if (connect(this->_client_socket, (struct sockaddr*)&this->_server_addr, sizeof(this->_server_addr)) == -1)
     {
-		close(this->_client_socket);
+		this->_close_socket();
 		return false;
 	}
     
+    this->_last_msg_len = 0;
+    this->_last_msg.clear();
     this->_heartbeat();
     this->_heartbeat_running = true;
     return true;

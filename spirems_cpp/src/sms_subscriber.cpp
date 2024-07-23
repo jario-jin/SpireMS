@@ -26,7 +26,7 @@ Subscriber::Subscriber
     this->_running = true;
 
     this->_client_socket = -1;
-    this->_buf = new char[BUFF_SIZE];
+    this->_buf = new char[BUFF_SIZE + 1];
     this->_recv_t = nullptr;
     this->_send_t = nullptr;
 
@@ -81,7 +81,7 @@ void Subscriber::recv_loop()
         {
             // std::cout << "recv_loop() -> this->_client_socket < 0" << std::endl;
             this->_heartbeat_running = false;
-            msleep(10);
+            sleep(1);
             continue;
         }
         ssize_t buf_len = read(this->_client_socket, this->_buf, BUFF_SIZE);
@@ -248,16 +248,18 @@ bool Subscriber::_link()
     timeout.tv_usec = 0;
     if (setsockopt(this->_client_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
     {
-        close(this->_client_socket);
+        this->_close_socket();
 		return false;
     }
 
     if (connect(this->_client_socket, (struct sockaddr*)&this->_server_addr, sizeof(this->_server_addr)) == -1)
     {
-		close(this->_client_socket);
+		this->_close_socket();
 		return false;
 	}
     
+    this->_last_msg_len = 0;
+    this->_last_msg.clear();
     this->_heartbeat();
     this->_heartbeat_running = true;
     return true;

@@ -88,6 +88,7 @@ void Subscriber::recv_loop()
         if (buf_len <= 0)
         {
             // std::cout << "recv_loop() -> buf_len == 0" << std::endl;
+            this->_close_socket();
             this->_heartbeat_running = false;
             sleep(1);
             continue;
@@ -152,7 +153,7 @@ void Subscriber::send_loop()
             }
             else
             {
-                if (get_time_sec() - this->_last_send_time >= 1.)
+                if (get_time_sec() - this->_last_send_time >= 1.0)
                 {
                     this->_heartbeat();
                 }
@@ -184,8 +185,9 @@ void Subscriber::suspend()
         std::string bytes = encode_msg(res_msg);
 
         this->_send_mtx.lock();
-        ssize_t ret = write(this->_client_socket, bytes.c_str(), bytes.size());
+        ssize_t ret = send(this->_client_socket, bytes.c_str(), bytes.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
         this->_send_mtx.unlock();
+
         this->_last_send_time = get_time_sec();
     }
 }
@@ -198,8 +200,9 @@ void Subscriber::unsuspend()
         std::string bytes = encode_msg(res_msg);
 
         this->_send_mtx.lock();
-        ssize_t ret = write(this->_client_socket, bytes.c_str(), bytes.size());
+        ssize_t ret = send(this->_client_socket, bytes.c_str(), bytes.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
         this->_send_mtx.unlock();
+
         this->_last_send_time = get_time_sec();
     }
 }
@@ -212,8 +215,9 @@ void Subscriber::_heartbeat()
     std::string bytes = encode_msg(heartbeat_msg);
 
     this->_send_mtx.lock();
-    ssize_t ret = write(this->_client_socket, bytes.c_str(), bytes.size());
+    ssize_t ret = send(this->_client_socket, bytes.c_str(), bytes.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
     this->_send_mtx.unlock();
+
     this->_last_send_time = get_time_sec();
 }
 
@@ -278,10 +282,10 @@ void Subscriber::_parse_msg(std::string msg)
             std::string bytes = encode_msg(res_msg);
 
             this->_send_mtx.lock();
-            ssize_t ret = write(this->_client_socket, bytes.c_str(), bytes.size());
+            ssize_t ret = send(this->_client_socket, bytes.c_str(), bytes.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
             this->_send_mtx.unlock();
-            this->_last_send_time = get_time_sec();
 
+            this->_last_send_time = get_time_sec();
             this->_callable(json_msg["topic"]);
         }
     }

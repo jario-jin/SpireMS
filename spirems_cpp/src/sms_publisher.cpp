@@ -82,11 +82,10 @@ bool Publisher::publish(nlohmann::json json_msg, bool enforce)
         if (this->_upload_id > 1e5)
             this->_upload_id = 1;
         topic_upload["id"] = this->_upload_id;
-        std::cout << "this->_upload_id: "<< this->_upload_id<<", len(this->_uploaded_ids): "<<this->_uploaded_ids.size()<<", (this->_uploaded_times): "<< this->_uploaded_times.size()<< std::endl;
+        std::cout << "this->_upload_id: "<< this->_upload_id<<", (this->_uploaded_times): "<< this->_uploaded_times.size()<< std::endl;
 
         this->_ids_mtx.lock();
-        this->_uploaded_ids.push_back(this->_upload_id);
-        this->_uploaded_times.push_back(std::make_pair<double, double>(get_time_sec(), -1));
+        this->_uploaded_times.push_back(SentInfo(this->_upload_id, get_time_sec(), -1));
         this->_ids_mtx.unlock();
 
         std::string bytes = encode_msg(topic_upload);
@@ -271,7 +270,6 @@ bool Publisher::_link()
 	}
     
     this->_ids_mtx.lock();
-    this->_uploaded_ids.clear();
     this->_uploaded_times.clear();
     this->_upload_id = 0;
     this->_ids_mtx.unlock();
@@ -303,11 +301,11 @@ void Publisher::_parse_msg(std::string msg)
             {
                 this->_error_cnt = 0;
                 this->_ids_mtx.lock();
-                for (int i=0; i<this->_uploaded_ids.size(); i++)
+                for (size_t i=0; i<this->_uploaded_times.size(); i++)
                 {
-                    if (json_msg["id"] == this->_uploaded_ids[i])
+                    if (json_msg["id"] == this->_uploaded_times[i].uid)
                     {
-                        this->_uploaded_times[i].second = get_time_sec() - this->_uploaded_times[i].first;
+                        this->_uploaded_times[i].time_dt = get_time_sec() - this->_uploaded_times[i].time_send;
                     }
                 }
                 this->_ids_mtx.unlock();
@@ -331,17 +329,17 @@ void Publisher::_delay_packet_loss_rate()
     double delay = 0.0;
     int delay_cnt = 0;
 
-    std::vector<int> invalid_ids;
+    std::vector<size_t> invalid_ids;
 
     this->_ids_mtx.lock();
     for (size_t i=0; i<this->_uploaded_times.size(); i++)
     {
-        if (this->_uploaded_times[i].second >= 0)
+        if (this->_uploaded_times[i].time_dt >= 0)
         {
-            delay += this->_uploaded_times[i].second;
+            delay += this->_uploaded_times[i].time_dt;
             delay_cnt ++;
         }
-        if (get_time_sec() - this->_uploaded_times[i].first > 5)
+        if (get_time_sec() - this->_uploaded_times[i].time_send > 5.0)
         {
             invalid_ids.push_back(i);
         }
@@ -349,15 +347,9 @@ void Publisher::_delay_packet_loss_rate()
     for (size_t i=0; i<invalid_ids.size(); i++)
     {
         if (this->_uploaded_times.size() > 1)
-        {
             this->_uploaded_times.erase(this->_uploaded_times.begin() + invalid_ids[i]);
-            this->_uploaded_ids.erase(this->_uploaded_ids.begin() + invalid_ids[i]);
-        }
         else
-        {
             this->_uploaded_times.clear();
-            this->_uploaded_ids.clear();
-        }
     }
     this->_ids_mtx.unlock();
 

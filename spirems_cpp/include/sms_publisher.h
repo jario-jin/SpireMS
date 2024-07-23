@@ -14,6 +14,17 @@
 namespace sms {
 
 
+class SentInfo
+{
+public:
+    SentInfo(int uid_, double time_send_, double time_dt_) : uid(uid_), time_send(time_send_), time_dt(time_dt_)
+    {
+    }
+    int uid;
+    double time_send;
+    double time_dt;
+};
+
 class Publisher
 {
 
@@ -54,8 +65,7 @@ private:
 
     bool _suspended;
     int _error_cnt;
-    std::vector<std::pair<double, double> > _uploaded_times;
-    std::vector<int> _uploaded_ids;
+    std::vector<SentInfo> _uploaded_times;
 
     int _client_socket;
     struct sockaddr_in _server_addr;

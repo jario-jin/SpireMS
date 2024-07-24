@@ -12,7 +12,11 @@ from spirems import Subscriber, Publisher, get_all_msg_types, cvimg2sms
 
 external_input_url = "/SpireView/CVJobInput"
 internal_input_url = "/SpireView/CVJobResultsInput"
-supported_algorithms = ["SpireDet", "YOLOv8"]
+supported_jobs = {
+    "SpireDet": {"input": "sensor_msgs::Image", "output": "wedet_msgs::DetResult"},
+    "YOLOv8": {"input": "sensor_msgs::Image", "output": "wedet_msgs::DetResult"},
+    "Detection2DEval": {"input": "wedet_msgs::DetResult", "output": "wedet_msgs::EvalResult"}
+}
 external_ip, external_port = "127.0.0.1", 9094
 internal_ip, internal_port = "127.0.0.1", 9094
 
@@ -27,10 +31,10 @@ class SpireViewPipeline(threading.Thread):
         self.i_res_sub = Subscriber(
             internal_input_url, "std_msgs::Null", self.parse_results, ip=internal_ip, port=internal_port)
         self.i_job_pubs = dict()
-        for alg in supported_algorithms:
+        for alg in supported_jobs.keys():
             pub_url = "/SpireView/{}/CVJobInput".format(alg.replace('-', '_'))
             self.i_job_pubs[alg] = Publisher(
-                pub_url, "sensor_msgs::Image", ip=internal_ip, port=internal_port)
+                pub_url, supported_jobs[alg]["input"], ip=internal_ip, port=internal_port)
         self.e_job_pubs = dict()
 
         self.running = True
@@ -53,10 +57,11 @@ class SpireViewPipeline(threading.Thread):
         while self.running:
             msg = self.job_queue.get(block=True)
 
-            img_msg = msg['image']
-            img_msg['client_id'] = msg['client_id']
-            if msg['algorithm'] in supported_algorithms:
-                self.i_job_pubs[msg['algorithm']].publish(img_msg, enforce=True)
+            if 'client_id' in msg and 'job' in msg:
+                img_msg = msg['data']
+                img_msg['client_id'] = msg['client_id']
+                if msg['job'] in supported_jobs:
+                    self.i_job_pubs[msg['job']].publish(img_msg, enforce=True)
 
     def parse_results(self, msg):
         self.res_queue.put(msg)
@@ -80,17 +85,4 @@ class SpireViewPipeline(threading.Thread):
 
 if __name__ == '__main__':
     pipeline = SpireViewPipeline()
-
-    pub1 = Publisher(external_input_url, 'wedet_msgs::CVJob')
-    # img = cv2.imread(r'C:\Users\jario\Pictures\MakeSuperResolutionImagezengqiang.png')
-    cap = cv2.VideoCapture(r'D:\dataset\001.mkv')
-    while True:
-        time.sleep(1)
-        ret, img = cap.read()
-        if ret:
-            tpc = get_all_msg_types()['wedet_msgs::CVJob'].copy()
-            tpc['algorithm'] = 'SpireDet'
-            tpc['image'] = cvimg2sms(img)
-            pub1.publish(tpc)
-        else:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    pipeline.join()

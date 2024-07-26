@@ -17,7 +17,7 @@ supported_jobs = {
     "YOLOv8": {"input": "sensor_msgs::Image", "output": "wedet_msgs::DetResult"},
     "Detection2DEval": {"input": "wedet_msgs::DetResult", "output": "wedet_msgs::EvalResult"}
 }
-external_ip, external_port = "127.0.0.1", 9094
+external_ip, external_port = "59.110.144.11", 9094
 internal_ip, internal_port = "127.0.0.1", 9094
 
 

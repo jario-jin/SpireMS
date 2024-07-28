@@ -44,4 +44,6 @@ target_link_libraries(
 # Demo
 add_executable(PublisherDemo demo/publisher_demo.cpp)
 target_link_libraries(PublisherDemo sms_core)
+add_executable(SubscriberDemo demo/subscriber_demo.cpp)
+target_link_libraries(SubscriberDemo sms_core)
 

@@ -82,7 +82,6 @@ bool Publisher::publish(nlohmann::json json_msg, bool enforce)
         if (this->_upload_id > 1e5)
             this->_upload_id = 1;
         topic_upload["id"] = this->_upload_id;
-        std::cout << "this->_upload_id: "<< this->_upload_id<<", (this->_uploaded_times): "<< this->_uploaded_times.size()<< std::endl;
 
         this->_ids_mtx.lock();
         this->_uploaded_times.push_back(SentInfo(this->_upload_id, get_time_sec(), -1));
@@ -111,7 +110,7 @@ void Publisher::recv_loop()
         }
         if (this->_client_socket < 0)
         {
-            std::cout << "recv_loop() -> this->_client_socket < 0" << std::endl;
+            // std::cout << "recv_loop() -> this->_client_socket < 0" << std::endl;
             this->_heartbeat_running = false;
             sleep(1);
             continue;
@@ -119,7 +118,7 @@ void Publisher::recv_loop()
         ssize_t buf_len = read(this->_client_socket, this->_buf, BUFF_SIZE);
         if (buf_len <= 0)
         {
-            std::cout << "recv_loop() -> buf_len == 0" << std::endl;
+            // std::cout << "recv_loop() -> buf_len == 0" << std::endl;
             this->_close_socket();
             this->_heartbeat_running = false;
             sleep(1);
@@ -127,7 +126,7 @@ void Publisher::recv_loop()
         }
         this->_buf[buf_len] = 0;
         std::string data(this->_buf, buf_len);
-        std::cout << "buf_len: " << buf_len << std::endl;
+        // std::cout << "buf_len: " << buf_len << std::endl;
 
         std::vector<std::string> checked_msgs;
         std::vector<std::string> parted_msgs;
@@ -135,7 +134,6 @@ void Publisher::recv_loop()
         std::vector<std::string> recv_msgs;
 
         _check_msg(data, checked_msgs, parted_msgs, parted_lens);
-        std::cout << "len(this->_last_msg): " << this->_last_msg.size() << ", this->_last_msg_len: " << this->_last_msg_len << std::endl;
         if (parted_msgs.size() > 0)
         {
             for (int i=0; i<parted_msgs.size(); i++)
@@ -181,7 +179,7 @@ void Publisher::send_loop()
             }
             if (this->_client_socket < 0)
             {
-                std::cout << "send_loop() -> this->_client_socket < 0" << std::endl;
+                // std::cout << "send_loop() -> this->_client_socket < 0" << std::endl;
                 this->_heartbeat_running = false;
             }
             else
@@ -359,7 +357,7 @@ void Publisher::_delay_packet_loss_rate()
         this->_transmission_delay = delay;
     }
 
-    std::cout << "this->_transmission_delay: " << this->_transmission_delay << ", size: " << delay_cnt << std::endl;
+    // std::cout << "this->_transmission_delay: " << this->_transmission_delay << ", size: " << delay_cnt << std::endl;
 }
 
 

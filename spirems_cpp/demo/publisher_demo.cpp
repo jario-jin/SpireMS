@@ -35,9 +35,9 @@ int main(int argc, char *argv[])
         else
         {
             nlohmann::json msg = sms::cvimg2sms(img);
-            cv::Mat img2 = sms::sms2cvimg(msg);
-            nlohmann::json msg2 = sms::cvimg2sms(img2);
-            pub.publish(msg2);
+            // cv::Mat img2 = sms::sms2cvimg(msg);
+            // nlohmann::json msg2 = sms::cvimg2sms(img2);
+            pub.publish(msg);
         }
         sms::msleep(30);
     }

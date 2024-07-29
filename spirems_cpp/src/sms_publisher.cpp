@@ -83,9 +83,9 @@ bool Publisher::publish(nlohmann::json json_msg, bool enforce)
             this->_upload_id = 1;
         topic_upload["id"] = this->_upload_id;
 
-        this->_ids_mtx.lock();
-        this->_uploaded_times.push_back(SentInfo(this->_upload_id, get_time_sec(), -1));
-        this->_ids_mtx.unlock();
+        // this->_ids_mtx.lock();
+        // this->_uploaded_times.push_back(SentInfo(this->_upload_id, get_time_sec(), -1));
+        // this->_ids_mtx.unlock();
 
         std::string bytes = encode_msg(topic_upload);
         this->_send_mtx.lock();
@@ -188,7 +188,7 @@ void Publisher::send_loop()
                 {
                     this->_heartbeat();
                 }
-                this->_delay_packet_loss_rate();
+                // this->_delay_packet_loss_rate();
             }
             sleep(1);
         }
@@ -267,10 +267,10 @@ bool Publisher::_link()
 		return false;
 	}
     
-    this->_ids_mtx.lock();
-    this->_uploaded_times.clear();
-    this->_upload_id = 0;
-    this->_ids_mtx.unlock();
+    // this->_ids_mtx.lock();
+    // this->_uploaded_times.clear();
+    // this->_upload_id = 0;
+    // this->_ids_mtx.unlock();
     this->_last_msg_len = 0;
     this->_last_msg.clear();
     this->_heartbeat();
@@ -298,15 +298,17 @@ void Publisher::_parse_msg(std::string msg)
             if (json_msg["id"] > 0)
             {
                 this->_error_cnt = 0;
+                /*
                 this->_ids_mtx.lock();
                 for (size_t i=0; i<this->_uploaded_times.size(); i++)
                 {
-                    if (json_msg["id"] == this->_uploaded_times[i].uid)
+                    if (json_msg["id"] == this->_uploaded_times.at(i).uid)
                     {
-                        this->_uploaded_times[i].time_dt = get_time_sec() - this->_uploaded_times[i].time_send;
+                        this->_uploaded_times.at(i).time_dt = get_time_sec() - this->_uploaded_times.at(i).time_send;
                     }
                 }
                 this->_ids_mtx.unlock();
+                */
             }
             if (json_msg["error_code"] > 0)
             {
@@ -322,6 +324,8 @@ void Publisher::_parse_msg(std::string msg)
     }
 }
 
+
+/*
 void Publisher::_delay_packet_loss_rate()
 {
     double delay = 0.0;
@@ -332,12 +336,12 @@ void Publisher::_delay_packet_loss_rate()
     this->_ids_mtx.lock();
     for (size_t i=0; i<this->_uploaded_times.size(); i++)
     {
-        if (this->_uploaded_times[i].time_dt >= 0)
+        if (this->_uploaded_times.at(i).time_dt >= 0)
         {
-            delay += this->_uploaded_times[i].time_dt;
+            delay += this->_uploaded_times.at(i).time_dt;
             delay_cnt ++;
         }
-        if (get_time_sec() - this->_uploaded_times[i].time_send > 5.0)
+        if (get_time_sec() - this->_uploaded_times.at(i).time_send > 5.0)
         {
             invalid_ids.push_back(i);
         }
@@ -359,6 +363,6 @@ void Publisher::_delay_packet_loss_rate()
 
     // std::cout << "this->_transmission_delay: " << this->_transmission_delay << ", size: " << delay_cnt << std::endl;
 }
-
+*/
 
 }

@@ -42,7 +42,7 @@ private:
     void _heartbeat();
     void _close_socket();
     void _parse_msg(std::string msg);
-    void _delay_packet_loss_rate();
+    // void _delay_packet_loss_rate();
 
     std::string _topic_url;
     std::string _topic_type;
@@ -65,7 +65,7 @@ private:
 
     bool _suspended;
     int _error_cnt;
-    std::vector<SentInfo> _uploaded_times;
+    // std::vector<SentInfo> _uploaded_times;
 
     int _client_socket;
     struct sockaddr_in _server_addr;

@@ -17,7 +17,7 @@ void callback(nlohmann::json msg)
 int main(int argc, char *argv[])
 {
     nlohmann::json msg_types = sms::load_msg_types();
-    sms::Publisher pub("/test/t1", "sensor_msgs::Image", "192.168.88.9");
+    sms::Publisher pub("/test/t1", "sensor_msgs::CompressedImage");
     //sms::Subscriber sub("/testcase/num_arr_v2", "std_msgs::Null", callback);
     int cnt = 0;
 
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            nlohmann::json msg = sms::cvimg2sms(img);
+            nlohmann::json msg = sms::cvimg2sms(img, "jpg");
             // cv::Mat img2 = sms::sms2cvimg(msg);
             // nlohmann::json msg2 = sms::cvimg2sms(img2);
             pub.publish(msg);

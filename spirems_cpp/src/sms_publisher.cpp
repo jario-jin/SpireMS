@@ -75,7 +75,8 @@ bool Publisher::publish(nlohmann::json json_msg, bool enforce)
     this->_enforce_publish = enforce;
     if (!this->_suspended && this->_heartbeat_running && (get_time_sec() - this->_last_upload_time > this->_transmission_delay * 0.3 || enforce))
     {
-        json_msg["timestamp"] = get_time_sec();
+        if (json_msg["timestamp"] == 0.0)
+            json_msg["timestamp"] = get_time_sec();
         nlohmann::json topic_upload = def_msg("_sys_msgs::TopicUpload");
         topic_upload["topic"] = json_msg;
         this->_upload_id += 1;

@@ -15,7 +15,7 @@ double get_time_sec();
 void msleep(int ms);
 bool decode_msg(std::string& byte_msg, nlohmann::json& json_msg);
 std::string encode_msg(nlohmann::json& json_msg);
-nlohmann::json cvimg2sms(const cv::Mat& cvimg, const std::string encoding="jpg");
+nlohmann::json cvimg2sms(const cv::Mat& cvimg, const std::string format="jpg", const std::string frame_id="camera");
 cv::Mat sms2cvimg(const nlohmann::json& msg);
 
 std::string _base64_encode(const std::string& input);

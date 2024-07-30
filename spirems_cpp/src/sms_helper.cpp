@@ -35,19 +35,41 @@ nlohmann::json load_msg_types(std::string msg_type_dir)
 {
     if (msg_type_dir.empty())
     {
-        msg_type_dir = _get_pdir(_get_pdir(_get_pdir(__FILE__))) + "/spirems/msgs";
         if (!g_msg_types.empty())  return g_msg_types;
-    }
-    std::vector<std::string> file_paths;
-    _list_dir(msg_type_dir, file_paths, ".json", "", true);
-
-    for (std::string file_path : file_paths)
-    {
-        std::ifstream f(file_path);
-        nlohmann::json data = nlohmann::json::parse(f);
-        if (data.contains("type") && !g_msg_types.contains(data["type"]))
+        std::string type_dir1 = _get_pdir(_get_pdir(_get_pdir(__FILE__))) + "/spirems/msgs";
+        std::string type_dir2 = _get_pdir(_get_pdir(_get_pdir(__FILE__))) + "/spirems/json_msgs";
+        std::vector<std::string> type_dirs;
+        type_dirs.push_back(type_dir1);
+        type_dirs.push_back(type_dir2);
+        for (std::string type_dir : type_dirs)
         {
-            g_msg_types[data["type"]] = data;
+            std::vector<std::string> file_paths;
+            _list_dir(type_dir, file_paths, ".json", "", true);
+
+            for (std::string file_path : file_paths)
+            {
+                std::ifstream f(file_path);
+                nlohmann::json data = nlohmann::json::parse(f);
+                if (data.contains("type") && !g_msg_types.contains(data["type"]))
+                {
+                    g_msg_types[data["type"]] = data;
+                }
+            }
+        }
+    }
+    else
+    {
+        std::vector<std::string> file_paths;
+        _list_dir(msg_type_dir, file_paths, ".json", "", true);
+
+        for (std::string file_path : file_paths)
+        {
+            std::ifstream f(file_path);
+            nlohmann::json data = nlohmann::json::parse(f);
+            if (data.contains("type") && !g_msg_types.contains(data["type"]))
+            {
+                g_msg_types[data["type"]] = data;
+            }
         }
     }
     if (g_msg_types.empty())
@@ -347,36 +369,42 @@ void _list_dir(std::string dir, std::vector<std::string>& files, std::string suf
 
 cv::Mat sms2cvimg(const nlohmann::json& msg)
 {
-    assert(msg["type"] == "sensor_msgs::Image");
+    assert(msg["type"] == "sensor_msgs::CompressedImage");
     std::string dncoded_base64 = _base64_decode(msg["data"]);
 
     // QByteArray decoded_base64 = QByteArray::fromBase64(QByteArray::fromStdString(msg["data"].get<std::string>()));
     std::vector<uchar> decoded_vec;
     decoded_vec.assign(dncoded_base64.begin(), dncoded_base64.end());
     cv::Mat cvimg;
-    if (msg["encoding"] == "jpeg" || msg["encoding"] == "jpg" || msg["encoding"] == "png")
+    if (msg["format"] == "jpeg" || msg["format"] == "jpg" || msg["format"] == "png" || msg["format"] == "webp")
     {
         cvimg = cv::imdecode(decoded_vec, cv::IMREAD_COLOR);
     }
     return cvimg;
 }
 
-nlohmann::json cvimg2sms(const cv::Mat& cvimg, const std::string encoding)
+nlohmann::json cvimg2sms(const cv::Mat& cvimg, const std::string format, const std::string frame_id)
 {
+    nlohmann::json img_msg = def_msg("sensor_msgs::CompressedImage");
+    img_msg["timestamp"] = get_time_sec();
+    img_msg["format"] = format;
+    img_msg["frame_id"] = frame_id;
+
     std::vector<uchar> img_encode;
-    if (encoding == "jpg" || encoding == "jpeg")
+    if (format == "jpg" || format == "jpeg")
     {
         cv::imencode(".jpg", cvimg, img_encode);
     }
-    else if (encoding == "png")
+    else if (format == "png")
     {
         cv::imencode(".png", cvimg, img_encode);
     }
-    nlohmann::json img_msg = def_msg("sensor_msgs::Image");
-    img_msg["height"] = cvimg.rows;
-    img_msg["width"] = cvimg.cols;
-    img_msg["channel"] = 3;
-    img_msg["encoding"] = encoding;
+    else if (format == "webp")
+    {
+        std::vector<int> quality = {cv::IMWRITE_WEBP_QUALITY, 50};
+        cv::imencode(".webp", cvimg, img_encode, quality);
+    }
+    
     std::string encoded_base64 = std::string(img_encode.begin(), img_encode.end());
     img_msg["data"] = _base64_encode(encoded_base64);
     return img_msg;

@@ -11,6 +11,7 @@ using namespace std;
 void callback(nlohmann::json msg)
 {
     cv::Mat img2 = sms::sms2cvimg(msg);
+    std::cout << sms::get_time_sec() - msg["timestamp"].get<double>() << std::endl;
     cv::imshow("img2", img2);
     cv::waitKey(10);
 }
@@ -18,7 +19,7 @@ void callback(nlohmann::json msg)
 
 int main(int argc, char *argv[])
 {
-    sms::Subscriber sub("/video_stream/video/image_raw", "sensor_msgs::Image", callback, "192.168.88.9");
+    sms::Subscriber sub("/test/t1", "sensor_msgs::CompressedImage", callback);
     sub.join();
     return 0;
 }

@@ -1,0 +1,10 @@
+{
+    "type": "sensor_msgs::RawImage",
+    "timestamp": 0.0,
+    "frame_id": "camera",
+    "width": 0,
+    "height": 0,
+    "encoding": "8UC3",
+    "step": 0,
+    "data": ""
+}

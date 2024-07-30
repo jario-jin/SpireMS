@@ -8,7 +8,7 @@ import threading
 import time
 
 from spirems.log import get_logger
-from spirems.msg_helper import (get_all_msg_types, encode_msg, check_topic_url, decode_msg, check_msg,
+from spirems.msg_helper import (get_all_msg_types, def_msg, encode_msg, check_topic_url, decode_msg, check_msg,
                                 index_msg_header, decode_msg_header)
 
 
@@ -63,7 +63,7 @@ class Subscriber(threading.Thread):
         while self.heartbeat_running:
             try:
                 if time.time() - self.last_send_time >= 1.0:
-                    apply_topic = get_all_msg_types()['_sys_msgs::Subscriber'].copy()
+                    apply_topic = def_msg('_sys_msgs::Subscriber')
                     apply_topic['topic_type'] = self.topic_type
                     apply_topic['url'] = self.topic_url
                     with self._send_lock:
@@ -91,7 +91,7 @@ class Subscriber(threading.Thread):
     def suspend(self):
         if self.running and self.heartbeat_running:
             try:
-                suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
+                suspend_msg = def_msg('_sys_msgs::Suspend')
                 with self._send_lock:
                     self.client_socket.sendall(encode_msg(suspend_msg))
                 self.last_send_time = time.time()
@@ -101,7 +101,7 @@ class Subscriber(threading.Thread):
     def unsuspend(self):
         if self.running and self.heartbeat_running:
             try:
-                suspend_msg = get_all_msg_types()['_sys_msgs::Unsuspend'].copy()
+                suspend_msg = def_msg('_sys_msgs::Unsuspend')
                 with self._send_lock:
                     self.client_socket.sendall(encode_msg(suspend_msg))
                 self.last_send_time = time.time()
@@ -113,7 +113,7 @@ class Subscriber(threading.Thread):
         if success and decode_data['type'] == '_sys_msgs::TopicDown':
             # print("{:.3f}: {}".format(time.time() - decode_data['timestamp'], decode_data))
             self.callback_func(decode_data['topic'])
-            response = get_all_msg_types()['_sys_msgs::Result'].copy()
+            response = def_msg('_sys_msgs::Result')
             response['id'] = decode_data['id']
             with self._send_lock:
                 self.client_socket.sendall(encode_msg(response))

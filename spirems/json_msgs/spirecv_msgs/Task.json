@@ -1,0 +1,7 @@
+{
+	"type": "spirecv_msgs::Task",
+	"timestamp": 0.0,
+	"client_id": "",
+    "task": "",
+    "data": {}
+}

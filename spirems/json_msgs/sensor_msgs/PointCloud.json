@@ -1,0 +1,27 @@
+{
+    "type": "sensor_msgs::PointCloud",
+    "timestamp": 0.0,
+    "frame_id": "camera",
+    "pose": {
+        "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "orientation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 0
+        }
+    },
+    "point_stride": 0,
+    "fields": [
+        {
+            "name": "",
+            "offset": 0,
+            "type": 0
+        }
+    ],
+    "data": ""
+}

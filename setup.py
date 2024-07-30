@@ -22,9 +22,13 @@ def get_package_data():
     data = []
     data.append('msgs/_sys_msgs/*.json')
     data.append('msgs/_visual_msgs/*.json')
-    data.append('msgs/sensor_msgs/*.json')
-    data.append('msgs/std_msgs/*.json')
-    data.append('msgs/wedet_msgs/*.json')
+    data.append('json_msgs/geometry_msgs/*.json')
+    data.append('json_msgs/sensor_msgs/*.json')
+    data.append('json_msgs/spirecv_msgs/*.json')
+    data.append('json_msgs/std_msgs/*.json')
+    data.append('json_schemas/geometry_msgs/*.json')
+    data.append('json_schemas/sensor_msgs/*.json')
+    data.append('json_schemas/std_msgs/*.json')
     data.append('logs/*.md')
     data.append('res/*.ttf')
     data.append('res/*.jpg')
@@ -46,5 +50,5 @@ setuptools.setup(
     package_data=get_package_data(),
     packages=setuptools.find_packages(),
     scripts=['spirems/sms.py'],
-    install_requires=("numpy", "opencv-python", "psutil"),
+    install_requires=("numpy", "opencv-python", "psutil", "jsonschema"),
 )

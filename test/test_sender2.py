@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
+
 import cv2
 
 from spirems import Publisher, Subscriber, get_all_msg_types, cvimg2sms, sms2cvimg

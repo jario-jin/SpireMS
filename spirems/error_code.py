@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
+
 from spirems.msg_helper import get_all_msg_types
 
 

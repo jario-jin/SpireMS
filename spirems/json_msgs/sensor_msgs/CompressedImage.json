@@ -1,0 +1,7 @@
+{
+    "type": "sensor_msgs::CompressedImage",
+    "timestamp": 0.0,
+    "frame_id": "camera",
+    "data": "",
+    "format": "jpeg"
+}

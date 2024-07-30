@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
+
 import socket
 import time
 
-from spirems.msg_helper import (encode_msg, decode_msg, get_all_msg_types, check_msg,
+from spirems.msg_helper import (encode_msg, decode_msg, get_all_msg_types, def_msg, check_msg,
                                 index_msg_header, decode_msg_header)
 import sys
 import argparse
@@ -71,7 +74,7 @@ def _list(ip, port):
     client_socket.settimeout(5)
     client_socket.connect((ip, port))
 
-    client_socket.send(encode_msg(get_all_msg_types()['_sys_msgs::SmsTopicList'].copy()))
+    client_socket.send(encode_msg(def_msg('_sys_msgs::SmsTopicList')))
     columns = ['Topics', 'Type', 'Subscribed-by']
 
     def _parse_msg(res):

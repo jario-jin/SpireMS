@@ -1,0 +1,26 @@
+{
+    "type": "sensor_msgs::LaserScan",
+    "timestamp": 0.0,
+    "frame_id": "camera",
+    "pose": {
+        "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "orientation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 0
+        }
+    },
+    "start_angle": 0,
+    "end_angle": 0,
+    "ranges": [
+        0
+    ],
+    "intensities": [
+        0
+    ]
+}

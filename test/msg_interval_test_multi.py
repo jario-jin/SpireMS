@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
+
 import cv2
 
 from spirems import Publisher, Subscriber, get_all_msg_types, cvimg2sms, sms2cvimg
@@ -99,7 +102,7 @@ def timer_callback():
 
 
 def img_callback():
-    pub = Publisher('/testcase/image', 'sensor_msgs::Image')
+    pub = Publisher('/testcase/image', 'sensor_msgs::CompressedImage')
     cap = cv2.VideoCapture(vid_dir)
     while True:
         time.sleep(0.02)
@@ -113,7 +116,7 @@ def img_callback():
 
 
 def cam_callback():
-    pub = Publisher('/testcase/camera', 'sensor_msgs::Image')
+    pub = Publisher('/testcase/camera', 'sensor_msgs::CompressedImage')
     cap = cv2.VideoCapture(0)
     while True:
         time.sleep(0.02)
@@ -125,8 +128,8 @@ def cam_callback():
 
 
 sub1 = Subscriber('/testcase/num_arr', 'std_msgs::NumberMultiArray', callback_f)
-sub2 = Subscriber('/testcase/image', 'sensor_msgs::Image', callback_g)
-sub3 = Subscriber('/testcase/camera', 'sensor_msgs::Image', callback_h)
+sub2 = Subscriber('/testcase/image', 'sensor_msgs::CompressedImage', callback_g)
+sub3 = Subscriber('/testcase/camera', 'sensor_msgs::CompressedImage', callback_h)
 
 
 with concurrent.futures.ThreadPoolExecutor() as executor:

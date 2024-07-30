@@ -1,0 +1,9 @@
+{
+    "type": "std_msgs::Log",
+    "timestamp": 0.0,
+    "level": 2,
+    "message": "",
+    "name": "",
+    "file": "",
+    "line": 0
+}

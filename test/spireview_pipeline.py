@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
 
 import threading
 import time
@@ -10,14 +12,14 @@ import cv2
 from spirems import Subscriber, Publisher, get_all_msg_types, cvimg2sms
 
 
-external_input_url = "/SpireView/CVJobInput"
-internal_input_url = "/SpireView/CVJobResultsInput"
+external_input_url = "/SpireView/TaskInput"
+internal_input_url = "/SpireView/TaskResultsInput"
 supported_jobs = {
-    "SpireDet": {"input": "sensor_msgs::Image", "output": "wedet_msgs::DetResult"},
-    "YOLOv8": {"input": "sensor_msgs::Image", "output": "wedet_msgs::DetResult"},
-    "Detection2DEval": {"input": "wedet_msgs::DetResult", "output": "wedet_msgs::EvalResult"}
+    "SpireDet": {"input": "sensor_msgs::CompressedImage", "output": "spirecv_msgs::2DTargets"},
+    "YOLOv8": {"input": "sensor_msgs::CompressedImage", "output": "spirecv_msgs::2DTargets"},
+    "Detection2DEval": {"input": "spirecv_msgs::2DTargets", "output": "spirecv_msgs::EvaluationResult"}
 }
-external_ip, external_port = "59.110.144.11", 9094
+external_ip, external_port = "127.0.0.1", 9094
 internal_ip, internal_port = "127.0.0.1", 9094
 
 
@@ -25,14 +27,14 @@ class SpireViewPipeline(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.e_job_sub = Subscriber(
-            external_input_url, "wedet_msgs::CVJob", self.parse_cv_job, ip=external_ip, port=external_port)
+            external_input_url, "spirecv_msgs::Task", self.parse_cv_job, ip=external_ip, port=external_port)
         self.job_queue = Queue()
         self.res_queue = Queue()
         self.i_res_sub = Subscriber(
             internal_input_url, "std_msgs::Null", self.parse_results, ip=internal_ip, port=internal_port)
         self.i_job_pubs = dict()
         for alg in supported_jobs.keys():
-            pub_url = "/SpireView/{}/CVJobInput".format(alg.replace('-', '_'))
+            pub_url = "/SpireView/{}/TaskInput".format(alg.replace('-', '_'))
             self.i_job_pubs[alg] = Publisher(
                 pub_url, supported_jobs[alg]["input"], ip=internal_ip, port=internal_port)
         self.e_job_pubs = dict()
@@ -48,7 +50,7 @@ class SpireViewPipeline(threading.Thread):
         while self.running:
             msg = self.res_queue.get(block=True)
 
-            res_url = "/SpireView/{}/CVJobResults".format(msg['client_id'])
+            res_url = "/SpireView/{}/TaskResults".format(msg['client_id'])
             if res_url not in self.e_job_pubs:
                 self.e_job_pubs[res_url] = Publisher(res_url, msg['type'], ip=external_ip, port=external_port)
             self.e_job_pubs[res_url].publish(msg, enforce=True)

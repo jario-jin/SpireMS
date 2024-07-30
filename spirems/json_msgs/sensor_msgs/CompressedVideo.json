@@ -1,0 +1,7 @@
+{
+    "type": "sensor_msgs::CompressedVideo",
+    "timestamp": 0.0,
+    "frame_id": "camera",
+    "data": "",
+    "format": "h264"
+}

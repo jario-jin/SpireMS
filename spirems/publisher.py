@@ -8,9 +8,10 @@ import random
 import socket
 import threading
 import time
-
+from jsonschema import validate
 from spirems.log import get_logger
-from spirems.msg_helper import (get_all_msg_types, encode_msg, check_topic_url, decode_msg, check_msg,
+from spirems.msg_helper import (get_all_msg_types, get_all_msg_schemas, def_msg, encode_msg, check_topic_url,
+                                decode_msg, check_msg,
                                 index_msg_header, decode_msg_header)
 
 
@@ -98,7 +99,7 @@ class Publisher(threading.Thread):
     def heartbeat(self):
         while self.heartbeat_running:
             try:
-                apply_topic = get_all_msg_types()['_sys_msgs::Publisher'].copy()
+                apply_topic = def_msg('_sys_msgs::Publisher')
                 apply_topic['topic_type'] = self.topic_type
                 apply_topic['url'] = self.topic_url
                 apply_topic['enforce'] = self.enforce_publish
@@ -132,14 +133,17 @@ class Publisher(threading.Thread):
         return time.time() - self.last_upload_time
 
     def publish(self, topic: dict, enforce: bool = False) -> bool:
+        if topic['type'] in get_all_msg_schemas():
+            validate(instance=topic, schema=get_all_msg_schemas()[topic['type']])
         if not self.suspended and self.running:
             self.enforce_publish = enforce
             if time.time() - self.last_upload_time > self.transmission_delay * 0.3 or enforce:
                 try:
                     # logger.info("avg_delay: {}".format(self.transmission_delay))
                     topic = topic.copy()
-                    topic['timestamp'] = time.time()
-                    topic_upload = get_all_msg_types()['_sys_msgs::TopicUpload'].copy()
+                    if 'timestamp' in topic.keys() and topic['timestamp'] == 0.0:
+                        topic['timestamp'] = time.time()
+                    topic_upload = def_msg('_sys_msgs::TopicUpload')
                     topic_upload['topic'] = topic
                     self.upload_id += 1
                     if self.upload_id > 1e6:
@@ -265,7 +269,7 @@ if __name__ == '__main__':
     cnt = 0
     while True:
         time.sleep(0.1)
-        tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
+        tpc = def_msg('std_msgs::NumberMultiArray')
         data = [123]
         # data.extend(random.random() for i in range(20))
         tpc['data'] = data
@@ -273,7 +277,7 @@ if __name__ == '__main__':
         # if cnt == 0:
         #     tpc['type'] = 'std_msgs::Number'
         pub1.publish(tpc, True)
-        tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
+        tpc = def_msg('std_msgs::NumberMultiArray')
         tpc['data'] = [456]
         pub2.publish(tpc, True)
         cnt += 1

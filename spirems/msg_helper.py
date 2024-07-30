@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+# @Author: renjin@bit.edu.cn
+# @Date  : 2024-07-08
+
 import os
 import json
 import struct
@@ -10,31 +13,54 @@ from spirems.log import get_logger
 
 
 logger = get_logger('MsgHelper')
-msg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'msgs')
+inner_msg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'msgs')
+ext_msg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'json_msgs')
+ext_schema_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'json_schemas')
 ALL_MSG_TYPES = None
+ALL_MSG_SCHEMAS = None
 
 
-def get_all_msg_types(msgs_dir: str = msg_dir) -> dict:
+def get_all_msg_types() -> dict:
     global ALL_MSG_TYPES
     if ALL_MSG_TYPES is None:
         types = dict()
-        sub_dirs = os.listdir(msgs_dir)
-        for sub_dir in sub_dirs:
-            if os.path.isdir(os.path.join(msgs_dir, sub_dir)):
-                json_fs = os.listdir(os.path.join(msgs_dir, sub_dir))
-                for json_f in json_fs:
-                    if os.path.splitext(json_f)[-1] == '.json':
-                        with open(os.path.join(msgs_dir, sub_dir, json_f), 'r') as file:
-                            msg = json.load(file)
-                        types[msg['type']] = msg
+        msgs_dirs = [inner_msg_dir, ext_msg_dir]
+        for msgs_dir in msgs_dirs:
+            sub_dirs = os.listdir(msgs_dir)
+            for sub_dir in sub_dirs:
+                if os.path.isdir(os.path.join(msgs_dir, sub_dir)):
+                    json_fs = os.listdir(os.path.join(msgs_dir, sub_dir))
+                    for json_f in json_fs:
+                        if os.path.splitext(json_f)[-1] == '.json':
+                            with open(os.path.join(msgs_dir, sub_dir, json_f), 'r') as file:
+                                msg = json.load(file)
+                            types[msg['type']] = msg
         ALL_MSG_TYPES = types
     return ALL_MSG_TYPES
 
 
+def get_all_msg_schemas() -> dict:
+    global ALL_MSG_SCHEMAS
+    if ALL_MSG_SCHEMAS is None:
+        schemas = dict()
+        sub_dirs = os.listdir(ext_schema_dir)
+        for sub_dir in sub_dirs:
+            if os.path.isdir(os.path.join(ext_schema_dir, sub_dir)):
+                json_fs = os.listdir(os.path.join(ext_schema_dir, sub_dir))
+                for json_f in json_fs:
+                    if os.path.splitext(json_f)[-1] == '.json':
+                        with open(os.path.join(ext_schema_dir, sub_dir, json_f), 'r') as file:
+                            msg = json.load(file)
+                        schemas[msg['title']] = msg
+        ALL_MSG_SCHEMAS = schemas
+    return ALL_MSG_SCHEMAS
+
+
 get_all_msg_types()
+get_all_msg_schemas()
 
 
-def load_msg_types(msgs_dir: str = msg_dir):
+def load_msg_types(msgs_dir: str):
     msg_types = get_all_msg_types()
     sub_dirs = os.listdir(msgs_dir)
     for sub_dir in sub_dirs:
@@ -54,6 +80,12 @@ def def_msg(msg_type: str = 'std_msgs::Null') -> dict:
         return msg_types[msg_type].copy()
     else:
         return msg_types['std_msgs::Null'].copy()
+
+
+def ros_time() -> dict:
+    seconds = int(time.time())
+    nanoseconds = int(time.time_ns() % 1e9)
+    return {'sec': seconds, 'nsec': nanoseconds}
 
 
 def index_msg_header(data: bytes) -> int:

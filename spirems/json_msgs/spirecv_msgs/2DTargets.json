@@ -1,0 +1,16 @@
+{
+	"type": "spirecv_msgs::2DTargets",
+	"timestamp": 0.0,
+	"file_name": "",
+    "height": 0,
+    "width": 0,
+    "dataset": "",
+    "client_id": "",
+    "img_id": 0,
+    "img_total": -1,
+    "fps": 0,
+    "fov_x": 0,
+    "fov_y": 0,
+    "rois": [],
+    "targets": []
+}

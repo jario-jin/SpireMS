@@ -1,0 +1,7 @@
+{
+	"type": "spirecv_msgs::EvaluationResult",
+	"timestamp": 0.0,
+	"client_id": "",
+	"metrics": [],
+	"results": []
+}

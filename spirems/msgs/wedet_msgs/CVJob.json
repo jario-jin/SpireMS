@@ -1,7 +1,0 @@
-{
-	"type": "wedet_msgs::CVJob",
-	"timestamp": 0.0,
-	"client_id": "19a4b6af_0f29_42a8_9ead_5cda3353dfb9",
-	"job": "YOLOv8",
-	"data": {}
-}

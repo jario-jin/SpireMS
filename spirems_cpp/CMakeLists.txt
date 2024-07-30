@@ -47,3 +47,55 @@ target_link_libraries(PublisherDemo sms_core)
 add_executable(SubscriberDemo demo/subscriber_demo.cpp)
 target_link_libraries(SubscriberDemo sms_core)
 
+
+# Install
+install(TARGETS sms_core
+  LIBRARY DESTINATION lib
+)
+install(FILES ${public_HEADS}
+  DESTINATION include
+)
+
+
+message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+if (NOT DEFINED SpireMS_INSTALL_PREFIX)
+  set(SpireMS_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
+  message(STATUS "SpireMS_INSTALL_PREFIX: ${SpireMS_INSTALL_PREFIX}")
+else()
+  message(STATUS "SpireMS_INSTALL_PREFIX: ${SpireMS_INSTALL_PREFIX}")
+endif()
+
+
+
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/build/${PROJECT_NAME}Config.cmake.in [[
+@PACKAGE_INIT@
+find_package(OpenCV REQUIRED)
+
+set(SpireMS_INCLUDE_DIRS
+  @SpireMS_INSTALL_PREFIX@/include
+  ${OpenCV_INCLUDE_DIRS}
+)
+set(SpireMS_LIBS
+  @SpireMS_INSTALL_PREFIX@/lib/libsms_core.so
+  ${OpenCV_LIBS}
+  rt pthread
+)
+]])
+
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config-version.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+configure_package_config_file(${CMAKE_CURRENT_BINARY_DIR}/build/${PROJECT_NAME}Config.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+  INSTALL_DESTINATION lib/cmake/${PROJECT_NAME}
+)
+install(FILES 
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config-version.cmake
+  DESTINATION lib/cmake/${PROJECT_NAME}
+)
+

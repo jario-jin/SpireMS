@@ -1,3 +1,5 @@
+<img src="https://pic.imgdb.cn/item/66aa21e7d9c307b7e935eed9.jpg" alt="SpireMS logo" align="right" height="100" />
+
 # SpireMS
 
 ## 介绍

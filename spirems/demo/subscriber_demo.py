@@ -15,7 +15,6 @@ def callback_f(msg):
 
 sub = Subscriber(
     '/talker/hello_spirems',
-    'std_msgs::String', callback_f,
-    # ip='47.91.115.171'
+    'std_msgs::String', callback_f
 )
 sub.wait_key()

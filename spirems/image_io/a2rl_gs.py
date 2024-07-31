@@ -6,7 +6,7 @@ from spirems.subscriber import Subscriber
 from spirems.publisher import Publisher
 from spirems.image_io.adaptor import sms2cvimg
 from spirems.image_io.visual_helper import load_a2rl_logo
-from spirems import get_all_msg_types
+from spirems import def_msg
 import time
 import cv2
 from PIL import ImageFont, ImageDraw, Image
@@ -122,13 +122,13 @@ def load_menu(cv_img: np.ndarray) -> np.ndarray:
 
 
 if __name__ == '__main__':
-    sub = Subscriber('/sensors/camera/image_raw', 'sensor_msgs::Image', callback_f,
+    sub = Subscriber('/sensors/camera/image_raw', 'sensor_msgs::CompressedImage', callback_f,
                      ip='47.91.115.171')  # 47.91.115.171
     sub2 = Subscriber('/a2rl/monit', 'std_msgs::NumberMultiArray', callback_monit,
                       ip='47.91.115.171')  # 47.91.115.171
     pub = Publisher('/signal/live_switch', 'std_msgs::Number',
                     ip='47.91.115.171')
-    num_tpc = get_all_msg_types()['std_msgs::Number'].copy()
+    num_tpc = def_msg('std_msgs::Number')
     running = True
     default_img = load_a2rl_logo()
     default_img = cv2.resize(default_img, (1280, 720))

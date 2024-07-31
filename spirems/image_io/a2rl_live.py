@@ -3,7 +3,7 @@
 from spirems.subscriber import Subscriber
 from spirems.publisher import Publisher
 from spirems.image_io.adaptor import sms2cvimg
-from spirems import get_all_msg_types
+from spirems import def_msg
 from spirems.image_io.visual_helper import draw_charts, load_a2rl_logo, track_boundary_parse, draw_track_map
 import cv2
 import numpy as np
@@ -21,7 +21,7 @@ def callback_f(msg):
     img2_ready = True
 
 
-a2rl_visual = get_all_msg_types()['_visual_msgs::A2RLMonit'].copy()
+a2rl_visual = def_msg('_visual_msgs::A2RLMonit')
 
 
 def callback_monit(msg):
@@ -81,7 +81,7 @@ def callback_ego_loc(msg):
 
 
 if __name__ == '__main__':
-    sub = Subscriber('/sensors/camera/image_raw', 'sensor_msgs::Image', callback_f,
+    sub = Subscriber('/sensors/camera/image_raw', 'sensor_msgs::CompressedImage', callback_f,
                      ip='47.91.115.171')  # 47.91.115.171
     pub = Publisher('/signal/live_switch', 'std_msgs::Number',
                     ip='47.91.115.171')
@@ -89,7 +89,7 @@ if __name__ == '__main__':
                       ip='47.91.115.171')  # 47.91.115.171
     sub3 = Subscriber('/a2rl/ego_loc', 'std_msgs::NumberMultiArray', callback_ego_loc,
                       ip='47.91.115.171')  # 47.91.115.171
-    num_tpc = get_all_msg_types()['std_msgs::Number'].copy()
+    num_tpc = def_msg('std_msgs::Number')
     left_line, right_line, (map_w, map_h) = track_boundary_parse()
     running = True
     default_img = load_a2rl_logo()

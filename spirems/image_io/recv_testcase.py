@@ -21,12 +21,12 @@ def callback_f(msg):
 
 
 if __name__ == '__main__':
-    sub = Subscriber('/sensors/camera/image_raw', 'sensor_msgs::Image', callback_f)
-    pub = Publisher('/sensors/camera/image_raw', 'sensor_msgs::Image')
+    sub = Subscriber('/sensors/camera/image_raw', 'sensor_msgs::CompressedImage', callback_f)
+    pub = Publisher('/sensors/camera/image_raw', 'sensor_msgs::CompressedImage')
     while True:
         img = load_a2rl_logo()
         img = cv2.resize(img, (1920, 1200))
-        sms = cvimg2sms(img, encoding='uint8')
+        sms = cvimg2sms(img, format='jpg')
         pub.publish(sms)
         time.sleep(0.1)
 

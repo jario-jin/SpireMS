@@ -4,7 +4,7 @@
 import json
 import os
 import time
-from spirems import Publisher, get_all_msg_types
+from spirems import Publisher, def_msg
 
 
 pub = Publisher('/a2rl/ego_loc', 'std_msgs::NumberMultiArray', ip='127.0.0.1')
@@ -16,6 +16,6 @@ with open(yas_path, 'r') as file:
     while 1:
         for pt, speed_pt in zip(line, speed):
             time.sleep(0.05)
-            tpc = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
+            tpc = def_msg('std_msgs::NumberMultiArray')
             tpc['data'] = [pt[0], pt[1], 0, speed_pt, speed_pt, 0, 0]
             pub.publish(tpc)

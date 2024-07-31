@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+
 import sys
 import time
 from spirems.subscriber import Subscriber
@@ -44,16 +45,15 @@ def callback_f(msg):
     last_disk_read = msg['data'][5]
     if last_disk_write > 0:
         disk_write = (msg['data'][6] - last_disk_write) / (msg['timestamp'] - last_time)
-        sys.stdout.write(Color.PURPLE + "Disk-Write: {:.2f} MB/s, ".format(disk_write * 1024) + Color.RESET)
+        sys.stdout.write(Color.PURPLE + "Disk-Write: {:.2f} MB/s".format(disk_write * 1024) + Color.RESET)
     last_disk_write = msg['data'][6]
-    sys.stdout.write(Color.CYAN + "Temp: {:.1f}".format(msg['data'][7]) + Color.RESET)
+    # sys.stdout.write(Color.CYAN + "Temp: {:.1f}".format(msg['data'][7]) + Color.RESET)
     sys.stdout.flush()
     last_time = msg['timestamp']
 
 
 def a2rl_sub():
-    sub = Subscriber('/a2rl/monit', 'std_msgs::NumberMultiArray', callback_f,
-                     ip='47.91.115.171')  # 47.91.115.171
+    sub = Subscriber('/a2rl/monit', 'std_msgs::NumberMultiArray', callback_f)
     sub.wait_key()
 
 

@@ -5,7 +5,7 @@ import psutil
 import time
 from spirems.log import get_logger
 from spirems.publisher import Publisher
-from spirems.msg_helper import get_all_msg_types
+from spirems.msg_helper import def_msg
 
 
 logger = get_logger('PsutilPub')
@@ -53,20 +53,19 @@ def cpu_monit():
     # logger.debug("disk_io_counters.read_count: {}".format(disk_io_counters.read_count))
     # logger.debug("disk_io_counters.write_count: {}".format(disk_io_counters.write_count))
 
-    sensors_temperatures = psutil.sensors_temperatures()
+    # sensors_temperatures = psutil.sensors_temperatures()
     # logger.debug("sensors_temperatures: {}".format(sensors_temperatures))
-    logger.debug("sensors_temperatures.coretemp: {}".format(sensors_temperatures['coretemp'][0].current))
-    values.append(sensors_temperatures['coretemp'][0].current)
+    # logger.debug("sensors_temperatures.coretemp: {}".format(sensors_temperatures['coretemp'][0].current))
+    # values.append(sensors_temperatures['coretemp'][0].current)
     return values
 
 
 def a2rl_pub():
-    pub = Publisher('/a2rl/monit', 'std_msgs::NumberMultiArray',
-                    ip='47.91.115.171')
+    pub = Publisher('/a2rl/monit', 'std_msgs::NumberMultiArray')
 
     while True:
         # time.sleep(1)
-        msg_num = get_all_msg_types()['std_msgs::NumberMultiArray'].copy()
+        msg_num = def_msg('std_msgs::NumberMultiArray')
         msg_num['data'] = cpu_monit()
         pub.publish(msg_num)
 

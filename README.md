@@ -1,4 +1,4 @@
-<img src="https://pic.imgdb.cn/item/66aa2fdfd9c307b7e943bbdd.png" alt="SpireMS logo" align="right" height="70" />
+<img src="https://pic.imgdb.cn/item/66aa2fdfd9c307b7e943bbdd.png" alt="SpireMS logo" align="right" height="80" />
 
 # SpireMS
 

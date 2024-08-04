@@ -191,20 +191,46 @@ def check_topic_url(topic_url: str) -> int:
     return error
 
 
+def check_node_name(node_name: str) -> int:
+    error = 0
+    pattern = r'^[a-zA-Z0-9_]*$'
+    if len(node_name) < 2:
+        error = 210  # at least 2 chars
+    elif not re.match(pattern, node_name):
+        error = 211  # only to use 'a-z', '0-9', '_'
+    elif node_name.startswith('_'):
+        if node_name == '_global':
+            pass
+        else:
+            error = 216
+    return error
+
+
+def check_param_key(param_key: str) -> int:
+    error = 0
+    pattern = r'^[a-zA-Z0-9_]*$'
+    if len(param_key) < 2:
+        error = 217  # at least 2 chars
+    elif param_key.startswith('/') and not re.match(pattern, param_key[1:]):
+        error = 218  # only to use 'a-z', '0-9', '_'
+    elif not param_key.startswith('/') and not re.match(pattern, param_key):
+        error = 218  # only to use 'a-z', '0-9', '_'
+    elif param_key.startswith('_'):
+        error = 219
+    return error
+
+
+def check_global_param_key(param_key: str) -> int:
+    error = 0
+    pattern = r'^[a-zA-Z0-9_/]*$'
+    if len(param_key) < 2:
+        error = 220  # at least 6 chars
+    elif not re.match(pattern, param_key):
+        error = 221  # only to use 'a-z', '0-9', '_', '/'
+    elif not param_key.startswith('/'):
+        error = 222
+    return error
+
+
 if __name__ == '__main__':
-    all_types = get_all_msg_types()
-    data_ = all_types['std_msgs::Number']
-
-    msg = encode_msg(data_)
-    # msg = 'hello'.encode('utf-8') + msg
-    print(index_msg_header(b'\xEA\xEC\xFB\xFD'))
-    print(msg[index_msg_header(msg):])
-    print(index_msg_header(msg))
-    print(decode_msg_header(msg))
-    stat, _dict = decode_msg(msg)
-    print(stat, _dict)
-
-    all_types = get_all_msg_types()
-    for t in all_types.items():
-        print(t)
-    print(list(all_types.keys()))
+    print(check_param_key('_test'))

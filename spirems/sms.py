@@ -137,7 +137,7 @@ def _list(ip, port):
             break
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'cmd',
@@ -168,3 +168,7 @@ if __name__ == '__main__':
             _hz(args.cmd[1], args.ip, args.port)
     else:
         pass
+
+
+if __name__ == '__main__':
+    main()

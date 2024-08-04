@@ -3,6 +3,7 @@
 # @Author: renjin@bit.edu.cn
 # @Date  : 2024-07-08
 
+import math
 import threading
 import socket
 import random
@@ -11,109 +12,163 @@ import struct
 from queue import Queue
 from spirems.log import get_logger
 from spirems.msg_helper import (get_all_msg_types, index_msg_header, decode_msg_header, decode_msg, encode_msg,
-                                check_topic_url, check_msg)
+                                check_topic_url, check_msg, check_node_name, def_msg, check_param_key,
+                                check_global_param_key)
 from spirems.error_code import ec2msg
 
 
 logger = get_logger('Core')
-TOPIC_LIST = None
-TOPIC_LIST_LOCK = threading.Lock()
 
 
-def get_public_topic() -> dict:
-    global TOPIC_LIST
-    if TOPIC_LIST is None:
-        TOPIC_LIST = {
+def singleton(cls):
+    _instance = None
+    _lock = threading.Lock()
+
+    def wrapper(*args, **kwargs):
+        nonlocal _instance
+        if _instance is None:
+            with _lock:
+                if _instance is None:
+                    _instance = cls(*args, **kwargs)
+        return _instance
+
+    return wrapper
+
+
+@singleton
+class SpireMS:
+    def __init__(self):
+        self.m_topic_list = {
             'from_topic': {},
             'from_key': {},
             'from_subscriber': {}
         }
-    return TOPIC_LIST
+        self.m_topic_list_lock = threading.Lock()
+        self.m_params = {}
+        self.m_params_lock = threading.Lock()
+        self.m_nodes = {}
+        self.m_nodes_lock = threading.Lock()
 
+    def is_param_exist(self, param: str) -> bool:
+        return param in self.m_params
 
-def get_public_topic_list() -> list:
-    topic_list = get_public_topic()
-    urls = list(topic_list['from_topic'].keys())
-    urls.sort()
-    return urls
+    def get_all_params(self) -> dict:
+        with self.m_params_lock:
+            all_params = {}
+            for key, value in self.m_params.items():
+                all_params[key] = value['value']
+            return all_params
 
-
-def show_topic_list():
-    topic_list = get_public_topic()
-    urls = list(topic_list['from_topic'].keys())
-    urls.sort()
-    for url in urls:
-        logger.info("{} <{}> [{}]".format(
-            topic_list['from_topic'][url]['url'],
-            topic_list['from_topic'][url]['type'],
-            topic_list['from_topic'][url]['key']
-        ))
-
-
-def sync_topic_subscriber():
-    topic_list = get_public_topic()
-    with TOPIC_LIST_LOCK:
-        for topic in topic_list['from_topic'].keys():
-            topic_list['from_topic'][topic]['subs'] = []
-        for client_key, client in topic_list['from_subscriber'].items():
-            if client['url'] in topic_list['from_topic']:
-                if client['type'] == topic_list['from_topic'][client['url']]['type']:
-                    topic_list['from_topic'][client['url']]['subs'].append(client_key)
-                elif client['type'] == 'std_msgs::Null':
-                    topic_list['from_topic'][client['url']]['subs'].append(client_key)
-
-
-def remove_topic(client_key: str):
-    topic_list = get_public_topic()
-    if client_key in topic_list['from_key']:
-        url = topic_list['from_key'][client_key]['url']
-        with TOPIC_LIST_LOCK:
-            if client_key in topic_list['from_topic'][url]['key']:
-                del topic_list['from_topic'][url]['key'][topic_list['from_topic'][url]['key'].index(client_key)]
-            if not topic_list['from_topic'][url]['key']:
-                del topic_list['from_topic'][url]
-            del topic_list['from_key'][client_key]
-        sync_topic_subscriber()
-
-
-def remove_subscriber(client_key: str):
-    topic_list = get_public_topic()
-    if client_key in topic_list['from_subscriber']:
-        with TOPIC_LIST_LOCK:
-            del topic_list['from_subscriber'][client_key]
-        sync_topic_subscriber()
-
-
-def update_topic(topic_url: str, topic_type: str, client_key: str):
-    topic_list = get_public_topic()
-    if client_key not in topic_list['from_key']:
-        with TOPIC_LIST_LOCK:
-            topic_list['from_key'][client_key] = {
-                'url': topic_url,
-                'type': topic_type,
-                'key': client_key
-            }
-            if topic_url in topic_list['from_topic']:
-                topic_list['from_topic'][topic_url]['key'].append(client_key)
+    def get_param(self, param: str) -> dict:
+        with self.m_params_lock:
+            if param in self.m_params:
+                return {param: self.m_params[param]['value']}
             else:
-                topic_list['from_topic'][topic_url] = {
+                return {}
+
+    def update_param(self, param: str, value, client_key: str) -> set:
+        with self.m_params_lock:
+            if param in self.m_params:
+                self.m_params[param]['client_keys'].add(client_key)
+                self.m_params[param]['value'] = value
+            else:
+                self.m_params[param] = {
+                    'client_keys': {client_key},
+                    'value': value
+                }
+            return self.m_params[param]['client_keys'].copy()
+
+    def is_param_node_exist(self, node_name: str, client_key: str) -> bool:
+        with self.m_nodes_lock:
+            return node_name in self.m_nodes and self.m_nodes[node_name] != client_key
+
+    def add_param_node(self, node_name: str, client_key: str):
+        with self.m_nodes_lock:
+            if node_name not in self.m_nodes:
+                self.m_nodes[node_name] = client_key
+
+    def add_global_param_node(self, client_key: str):
+        with self.m_params_lock:
+            for param in self.m_params:
+                self.m_params[param]['client_keys'].add(client_key)
+
+    def remove_param_node(self, node_name: str, client_key: str):
+        with self.m_nodes_lock:
+            if node_name in self.m_nodes:
+                del self.m_nodes[node_name]
+        with self.m_params_lock:
+            for param in self.m_params:
+                self.m_params[param]['client_keys'].discard(client_key)
+                if len(self.m_params[param]['client_keys']) == 0:
+                    del self.m_params[param]
+
+    def get_public_topic_list(self) -> list:
+        with self.m_topic_list_lock:
+            urls = list(self.m_topic_list['from_topic'].keys())
+        urls.sort()
+        return urls
+
+    def get_public_topic(self) -> dict:
+        with self.m_topic_list_lock:
+            return self.m_topic_list.copy()
+
+    def sync_topic_subscriber(self):
+        with self.m_topic_list_lock:
+            for topic in self.m_topic_list['from_topic'].keys():
+                self.m_topic_list['from_topic'][topic]['subs'] = []
+            for client_key, client in self.m_topic_list['from_subscriber'].items():
+                if client['url'] in self.m_topic_list['from_topic']:
+                    if client['type'] == self.m_topic_list['from_topic'][client['url']]['type']:
+                        self.m_topic_list['from_topic'][client['url']]['subs'].append(client_key)
+                    elif client['type'] == 'std_msgs::Null':
+                        self.m_topic_list['from_topic'][client['url']]['subs'].append(client_key)
+
+    def remove_topic(self, client_key: str):
+        with self.m_topic_list_lock:
+            if client_key in self.m_topic_list['from_key']:
+                url = self.m_topic_list['from_key'][client_key]['url']
+                if client_key in self.m_topic_list['from_topic'][url]['key']:
+                    del self.m_topic_list['from_topic'][url]['key'][
+                        self.m_topic_list['from_topic'][url]['key'].index(client_key)
+                    ]
+                if not self.m_topic_list['from_topic'][url]['key']:
+                    del self.m_topic_list['from_topic'][url]
+                del self.m_topic_list['from_key'][client_key]
+        self.sync_topic_subscriber()
+
+    def remove_subscriber(self, client_key: str):
+        with self.m_topic_list_lock:
+            if client_key in self.m_topic_list['from_subscriber']:
+                del self.m_topic_list['from_subscriber'][client_key]
+        self.sync_topic_subscriber()
+
+    def update_topic(self, topic_url: str, topic_type: str, client_key: str):
+        with self.m_topic_list_lock:
+            if client_key not in self.m_topic_list['from_key']:
+                self.m_topic_list['from_key'][client_key] = {
                     'url': topic_url,
                     'type': topic_type,
-                    'key': [client_key]
+                    'key': client_key
                 }
-        sync_topic_subscriber()
+                if topic_url in self.m_topic_list['from_topic']:
+                    self.m_topic_list['from_topic'][topic_url]['key'].append(client_key)
+                else:
+                    self.m_topic_list['from_topic'][topic_url] = {
+                        'url': topic_url,
+                        'type': topic_type,
+                        'key': [client_key]
+                    }
+        self.sync_topic_subscriber()
 
-
-def update_subscriber(topic_url: str, topic_type: str, client_key: str):
-    topic_list = get_public_topic()
-    if client_key not in topic_list['from_subscriber']:
-        with TOPIC_LIST_LOCK:
-            topic_list['from_subscriber'][client_key] = {
-                'url': topic_url,
-                'type': topic_type,
-                'key': client_key
-            }
-        sync_topic_subscriber()
+    def update_subscriber(self, topic_url: str, topic_type: str, client_key: str):
+        with self.m_topic_list_lock:
+            if client_key not in self.m_topic_list['from_subscriber']:
+                self.m_topic_list['from_subscriber'][client_key] = {
+                    'url': topic_url,
+                    'type': topic_type,
+                    'key': client_key
+                }
+        self.sync_topic_subscriber()
 
 
 def check_publish_url_type(topic_url: str, topic_type: str, client_key: str) -> int:
@@ -134,6 +189,11 @@ def check_subscribe_url_type(topic_url: str, topic_type: str) -> int:
     return error
 
 
+def check_parameter_node_name(node_name: str) -> int:
+    error = check_node_name(node_name)
+    return error
+
+
 def random_vcode(k=6):
     vcode = ''.join(random.choices(
         ['z', 'y', 'x', 'w', 'v', 'u', 't', 's', 'r', 'q', 'p', 'o', 'n', 'm', 'l', 'k', 'j', 'i', 'h', 'g', 'f', 'e',
@@ -142,7 +202,7 @@ def random_vcode(k=6):
 
 
 class Pipeline(threading.Thread):
-    def __init__(self, client_key, client_socket, _server):
+    def __init__(self, client_key: str, client_socket, _server):
         threading.Thread.__init__(self)
         self.client_key = client_key
         self.client_socket = client_socket
@@ -152,6 +212,8 @@ class Pipeline(threading.Thread):
         self.pub_enforce = True
         self.sub_type = None
         self.sub_url = None
+        self.param_node_name = None
+        self.param_node_on = False
         self._quit = False
         self.pub_suspended = False
         self.sub_suspended = False
@@ -199,16 +261,16 @@ class Pipeline(threading.Thread):
     def heartbeat(self):
         while self.running:
             try:
-                hb_msg = get_all_msg_types()['_sys_msgs::HeartBeat'].copy()
+                hb_msg = def_msg('_sys_msgs::HeartBeat')
                 if time.time() - self.last_send_time >= 1.0:
                     with self._send_lock:
                         self.client_socket.sendall(encode_msg(hb_msg))
                     self.last_send_time = time.time()
                 if self.pub_type is not None:  # self.pub_suspended
-                    all_topics = get_public_topic()
+                    all_topics = SpireMS().get_public_topic()
                     url = all_topics['from_key'][self.client_key]['url']
                     if len(all_topics['from_topic'][url]['subs']) > 0:
-                        unsuspend_msg = get_all_msg_types()['_sys_msgs::Unsuspend'].copy()
+                        unsuspend_msg = def_msg('_sys_msgs::Unsuspend')
                         with self._send_lock:
                             self.client_socket.sendall(encode_msg(unsuspend_msg))
                         self.last_send_time = time.time()
@@ -237,7 +299,9 @@ class Pipeline(threading.Thread):
                 if not self.sub_suspended and (
                         time.time() - self.last_upload_time > self.transmission_delay * 0.3 or self.pub_enforce):
                     self.pass_id += 1
-                    passed_msg = get_all_msg_types()['_sys_msgs::TopicDown'].copy()
+                    if self.pass_id > 1e6:
+                        self.pass_id = 1
+                    passed_msg = def_msg('_sys_msgs::TopicDown')
                     passed_msg['id'] = self.pass_id
                     passed_msg['topic'] = topic
                     with self._ids_lock:
@@ -263,10 +327,10 @@ class Pipeline(threading.Thread):
             self.sub_forwarding_queue.put(topic)
 
     def _pub_forwarding_topic(self, topic: dict):
-        all_topics = get_public_topic()
+        all_topics = SpireMS().get_public_topic()
         url = all_topics['from_key'][self.client_key]['url']
         if len(all_topics['from_topic'][url]['subs']) == 0:
-            suspend_msg = get_all_msg_types()['_sys_msgs::Suspend'].copy()
+            suspend_msg = def_msg('_sys_msgs::Suspend')
             with self._send_lock:
                 self.client_socket.sendall(encode_msg(suspend_msg))
             self.last_send_time = time.time()
@@ -278,7 +342,7 @@ class Pipeline(threading.Thread):
             self._server.msg_forwarding(sub, topic)
 
     def _parse_msg(self, data: bytes):
-        response = get_all_msg_types()['_sys_msgs::Result'].copy()
+        response = def_msg('_sys_msgs::Result')
         no_reply = False
         success, msg = decode_msg(data)
         if success:
@@ -290,7 +354,7 @@ class Pipeline(threading.Thread):
                     if error == 0:
                         self.pub_type = msg['topic_type']
                         self.pub_enforce = msg['enforce']
-                        update_topic(msg['url'], msg['topic_type'], self.client_key)
+                        SpireMS().update_topic(msg['url'], msg['topic_type'], self.client_key)
                     else:
                         response = ec2msg(error)
                 else:
@@ -304,23 +368,42 @@ class Pipeline(threading.Thread):
                         self.sub_type = msg['topic_type']
                         self.sub_url = msg['url']
                         if not self.sub_suspended:
-                            update_subscriber(self.sub_url, self.sub_type, self.client_key)
+                            SpireMS().update_subscriber(self.sub_url, self.sub_type, self.client_key)
                     else:
                         response = ec2msg(error)
                 else:
                     response = ec2msg(206)
+            elif '_sys_msgs::Parameter' == msg['type']:
+                if 'node_name' in msg:
+                    error = check_parameter_node_name(msg['node_name'])
+                    if self.pub_type is not None or self.sub_type is not None:
+                        error = 213
+                    if SpireMS().is_param_node_exist(msg['node_name'], self.client_key):
+                        error = 214
+                    if error == 0:
+                        if not self.param_node_on:
+                            if msg['node_name'] == '_global':
+                                SpireMS().add_global_param_node(self.client_key)
+                            else:
+                                SpireMS().add_param_node(msg['node_name'], self.client_key)
+                            self.param_node_name = msg['node_name']
+                            self.param_node_on = True
+                    else:
+                        response = ec2msg(error)
+                else:
+                    response = ec2msg(212)
             elif '_sys_msgs::Suspend' == msg['type'] and self.sub_type is not None:
                 self.sub_suspended = True
-                remove_subscriber(self.client_key)
+                SpireMS().remove_subscriber(self.client_key)
                 no_reply = True
             elif '_sys_msgs::Unsuspend' == msg['type'] and self.sub_type is not None:
                 self.sub_suspended = False
-                update_subscriber(self.sub_url, self.sub_type, self.client_key)
+                SpireMS().update_subscriber(self.sub_url, self.sub_type, self.client_key)
                 no_reply = True
             elif '_sys_msgs::SmsTopicList' == msg['type']:
                 response['error_code'] = 0
                 url_types = []
-                for key, val in get_public_topic()['from_topic'].items():
+                for key, val in SpireMS().get_public_topic()['from_topic'].items():
                     url_types.append(key + "," + val['type'] + "," + str(len(val['subs'])))
                 response['data'] = ";".join(url_types)
             elif '_sys_msgs::TopicUpload' == msg['type']:
@@ -338,6 +421,62 @@ class Pipeline(threading.Thread):
                         recv_id = msg['id']
                         self.passed_ids[recv_id][1] = time.time() - self.passed_ids[recv_id][0]
                 no_reply = True
+            elif '_sys_msgs::ParamWriter' == msg['type']:
+                if self.param_node_name is not None:
+                    client_key_with_params = dict()
+                    if self.param_node_name == '_global':
+                        for param_key in msg['params'].keys():
+                            param_err = check_global_param_key(param_key)
+                            if 0 == param_err:
+                                if SpireMS().is_param_exist(param_key):
+                                    client_keys = SpireMS().update_param(
+                                        param_key, msg['params'][param_key], self.client_key)
+                                    for client_key in client_keys:
+                                        if client_key not in client_key_with_params:
+                                            client_key_with_params[client_key] = dict()
+                                        client_key_with_params[client_key][param_key] = msg['params'][param_key]
+                                else:
+                                    response = ec2msg(223)
+                            else:
+                                response = ec2msg(param_err)
+                    else:
+                        for param_key in msg['params'].keys():
+                            param_err = check_param_key(param_key)
+                            if 0 == param_err:
+                                if param_key.startswith('/'):
+                                    abs_param_key = '/_global' + param_key
+                                else:
+                                    abs_param_key = '/' + self.param_node_name + '/' + param_key
+                                client_keys = SpireMS().update_param(
+                                    abs_param_key, msg['params'][param_key], self.client_key)
+                                for client_key in client_keys:
+                                    if client_key not in client_key_with_params:
+                                        client_key_with_params[client_key] = dict()
+                                    client_key_with_params[client_key][abs_param_key] = msg['params'][param_key]
+                            else:
+                                response = ec2msg(param_err)
+                    for client_key in client_key_with_params:
+                        self._server.msg_forwarding(client_key, client_key_with_params[client_key])
+                else:
+                    response = ec2msg(215)
+            elif '_sys_msgs::ParamReader' == msg['type']:
+                if self.param_node_name is not None:
+                    params = dict()
+                    if self.param_node_name == '_global':
+                        if len(msg['keys']):
+                            for param_key in msg['keys']:
+                                params.update(SpireMS().get_param(param_key))
+                        else:
+                            params.update(SpireMS().get_all_params())
+                    else:
+                        for param_key in msg['keys']:
+                            if param_key.startswith('/'):
+                                params.update(SpireMS().get_param('/_global' + param_key))
+                            else:
+                                params.update(SpireMS().get_param('/' + self.param_node_name + '/' + param_key))
+                    response['params'] = params
+                else:
+                    response = ec2msg(215)
             else:
                 no_reply = True
         else:
@@ -408,7 +547,9 @@ class Pipeline(threading.Thread):
             try:
                 self.sub_forwarding_queue.put(None)
                 if self.sub_type is not None:
-                    remove_subscriber(self.client_key)
+                    SpireMS().remove_subscriber(self.client_key)
+                if self.param_node_name is not None:
+                    SpireMS().remove_param_node(self.param_node_name, self.client_key)
                 self.client_socket.close()
             except Exception as e:
                 logger.error("(ID: {}, P: {}, S: {}) Pipeline->quit: {}".format(
@@ -430,7 +571,18 @@ class Core(threading.Thread):
         self._clients_lock = threading.Lock()
         self.listen()
 
+    def is_port_available(self):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', self.port))
+            return True
+        except OSError:
+            return False
+
     def listen(self):
+        if not self.is_port_available():
+            logger.error('The port {} is already used. Please check!'.format(self.port))
+            return
         self.socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # self.socket_server.settimeout(5)
         self.socket_server.bind(('', self.port))
@@ -442,8 +594,8 @@ Welcome to:
   o-o                 o   o  o-o  
  |          o         |\ /| |     
   o-o  o-o    o-o o-o | O |  o-o  
-     | |  | | |   |-' |   |     | 
- o--o  O-o  | o   o-o o   o o--o  
+     | |  | | |   |-' | | |     | 
+ o--o  O-o  | o   o-o o o o o--o  
        |                          
        o                          
 """
@@ -484,8 +636,7 @@ Welcome to:
                     c.quit()
                 self.listening = False
             else:
-                remove_topic(client_key)
-                # show_topic_list()
+                SpireMS().remove_topic(client_key)
                 self.connected_clients[client_key].quit()
         except Exception as e:
             logger.error("Server->quit: {}".format(e))
@@ -500,6 +651,13 @@ Welcome to:
         ))
 
 
-if __name__ == '__main__':
+def main():
     server = Core(9094)
-    server.join()
+    try:
+        server.join()
+    except:
+        pass
+
+
+if __name__ == '__main__':
+    main()

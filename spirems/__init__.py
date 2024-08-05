@@ -13,7 +13,7 @@ from spirems.image_io.adaptor import cvimg2sms, sms2cvimg
 from spirems.msg_helper import get_all_msg_types, get_all_msg_schemas, load_msg_types, def_msg
 
 
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 
 __all__ = [
     'a2rl_pub', 'a2rl_sub', 'cvimg2sms', 'cvimg2sms', 'get_all_msg_types', 'get_all_msg_schemas', 'load_msg_types',

@@ -96,7 +96,7 @@ class Parameter(threading.Thread):
         else:
             return self.sync_params
 
-    def get_params(self, params_keys: list[str]) -> dict:
+    def get_params(self, params_keys: list) -> dict:
         assert isinstance(params_keys, list), "The input params_keys must be a list type!"
         for param_key in params_keys:
             assert isinstance(param_key, str), "The input param_key must be a string type!"

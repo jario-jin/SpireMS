@@ -52,11 +52,10 @@ target_link_libraries(YourAppName ${SpireMS_LIBS})
 ## 使用说明
 
 ### Python使用说明
-1. 启动Core服务（Python交互脚本方式，也可以用C++中的启动方式，启动一次即可）
+1. 启动Core服务
 
-```Python
-from spirems import Core
-Core().join()
+```Bash
+smscore
 ```
 
 2.  发布话题
@@ -86,8 +85,7 @@ sub = Subscriber('/topic/hello', 'std_msgs::String', callback_f)
 1. 启动Core服务（命令行方式，也可以用Python中的启动方式，启动一次即可）
 
 ```Bash
-cd <path-to-spirems>/spirems
-python core.py
+smscore
 ```
 
 2. 发布话题
@@ -125,6 +123,43 @@ int main(int argc, char *argv[])
 }
 ```
 
+### 命令行控制
+
+1. 显示所有话题
+
+```Bash
+sms list
+```
+
+2. 打印话题
+
+```Bash
+sms echo /topic/hello
+```
+
+3. 打印话题频率
+
+```Bash
+sms hz /topic/hello
+```
+
+4. 打印参数服务器所有参数
+
+```Bash
+smsparam list
+```
+
+5. 在线更新参数
+
+```Bash
+smsparam set param_key param_value
+```
+
+6. 导出所有参数
+
+```Bash
+smsparam export output.json
+```
 
 ## 参与贡献
 

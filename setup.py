@@ -52,7 +52,8 @@ setuptools.setup(
     entry_points = {
         'console_scripts': [
             'sms=spirems.sms:main',
-            'smscore=spirems.core:main'
+            'smscore=spirems.core:main',
+            'smsparam=spirems.smsparam:main'
         ],
     },
     install_requires=("numpy", "opencv-python", "psutil", "jsonschema"),

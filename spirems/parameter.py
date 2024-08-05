@@ -9,7 +9,7 @@ import time
 from queue import Queue
 from spirems.log import get_logger
 from spirems.msg_helper import (get_all_msg_types, def_msg, encode_msg, check_topic_url, decode_msg, check_msg,
-                                index_msg_header, decode_msg_header, check_node_name)
+                                index_msg_header, decode_msg_header, check_node_name, can_be_jsonified)
 from spirems.error_code import ec2str
 
 logger = get_logger('Parameter')
@@ -98,6 +98,8 @@ class Parameter(threading.Thread):
 
     def get_params(self, params_keys: list[str]) -> dict:
         assert isinstance(params_keys, list), "The input params_keys must be a list type!"
+        for param_key in params_keys:
+            assert isinstance(param_key, str), "The input param_key must be a string type!"
         while not (self.running and self.heartbeat_running):
             time.sleep(0.1)
         if self.running and self.heartbeat_running:
@@ -119,6 +121,9 @@ class Parameter(threading.Thread):
         self.set_params({param_key: param_value})
 
     def set_params(self, params_dict: dict):
+        for param_key, param_val in params_dict.items():
+            assert isinstance(param_key, str), "The input param_key must be a string type!"
+            assert can_be_jsonified(param_val), "The input param_value must be jsonified!"
         while not (self.running and self.heartbeat_running):
             time.sleep(0.1)
         if self.running and self.heartbeat_running:
@@ -246,11 +251,5 @@ if __name__ == '__main__':
     param = Parameter('DetNode', params_changed)
     param.set_param('/dataset', ['ass', 1232])
     param.set_params({'my_param1': 123, 'my_param2': '456'})
-    print(param.get_all_params())
-    time.sleep(5)
-    print(param.get_all_params())
-    time.sleep(5)
-    print(param.get_all_params())
-    time.sleep(5)
-    print(param.get_all_params())
+    # print(param.get_params(['123', 123]))
     param.join()

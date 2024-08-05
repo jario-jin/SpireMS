@@ -232,5 +232,13 @@ def check_global_param_key(param_key: str) -> int:
     return error
 
 
+def can_be_jsonified(obj: any) -> bool:
+    try:
+        json.dumps(obj)
+        return True
+    except TypeError:
+        return False
+
+
 if __name__ == '__main__':
-    print(check_param_key('_test'))
+    print(can_be_jsonified('_test'))

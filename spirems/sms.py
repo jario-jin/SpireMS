@@ -147,12 +147,12 @@ def main():
         '--ip',
         type=str,
         default='127.0.0.1',
-        help='SpireMS Server IP')
+        help='SpireMS Core IP')
     parser.add_argument(
         '--port',
         type=int,
         default=9094,
-        help='SpireMS Server Port')
+        help='SpireMS Core Port')
     args = parser.parse_args()
     # print(args.ip)
     # print(args.port)
@@ -161,10 +161,10 @@ def main():
         if 'list' == args.cmd[0]:
             _list(args.ip, args.port)
         if 'echo' == args.cmd[0]:
-            assert len(args.cmd) > 1, "You should subscribe a topic in Command"
+            assert len(args.cmd) > 1, "Usage: sms echo [topic_url]"
             _echo(args.cmd[1], args.ip, args.port)
         if 'hz' == args.cmd[0]:
-            assert len(args.cmd) > 1, "You should subscribe a topic in Command"
+            assert len(args.cmd) > 1, "Usage: sms hz [topic_url]"
             _hz(args.cmd[1], args.ip, args.port)
     else:
         pass

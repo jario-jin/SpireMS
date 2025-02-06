@@ -4,9 +4,9 @@
 ## 介绍
 Spire消息系统，一个类似ROS的轻量化消息发布、订阅软件包，支持图像、雷达等传感器话题。
 
-**该仓库已经迁移到：**https://gitee.com/jario-jin/spirems.git
+**该仓库已经迁移到**：https://gitee.com/jario-jin/spirems.git
 
-**This repository has been migrated to：**https://gitee.com/jario-jin/spirems.git
+**This repository has been migrated to**：https://gitee.com/jario-jin/spirems.git
 
 ## 安装教程
 
